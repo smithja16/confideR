@@ -57,7 +57,7 @@ write.csv(sim_data, "data/simulated_cpue.csv", row.names = FALSE)
 confidential_mode_off()
 ```
 
-## The "develop on fake, run on real" workflow
+## The "develop on fake, run on real" workflow with physcial separation
 
 ```
   AI Machine (workshop)          Secure Machine (vault)
@@ -105,10 +105,7 @@ confidential_mode_off()
 If you use safecatch in your research, please cite:
 
 ```
-[Author] (2026). Protecting confidential fisheries data when using AI
+[Authors] (2026). Protecting confidential data when using AI
 coding assistants: A practical guide. [Journal]. DOI: [pending]
 ```
 
-## License
-
-MIT

@@ -1,0 +1,33 @@
+Package: safecatch
+Title: Protect Confidential Fisheries Data When Using AI Coding Assistants
+Version: 0.1.0
+Authors@R: 
+    person("James", "[Surname]", role = c("aut", "cre"),
+           email = "james@example.com",
+           comment = c(ORCID = "0000-0000-0000-0000"))
+Description: Provides tools to protect confidential fisheries data during
+    AI-assisted code development. Enforces a 'confidential mode' that clears
+    AI API keys, blocks AI-adjacent R packages, and gates data loading.
+    Audits the current IDE (RStudio, Positron, VS Code) for active AI
+    features. Generates privacy-safe data schemas ('fingerprints') from
+    real datasets without exposing raw values. Simulates realistic fisheries
+    CPUE data for safe use with AI coding assistants, supporting the
+    'develop on simulated data, run on real data' workflow.
+License: MIT + file LICENSE
+URL: https://github.com/[user]/safecatch
+BugReports: https://github.com/[user]/safecatch/issues
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Depends: 
+    R (>= 4.1.0)
+Imports:
+    stats,
+    utils
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    rstudioapi
+Config/testthat/edition: 3
+VignetteBuilder: knitr

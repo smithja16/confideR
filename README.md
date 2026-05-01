@@ -40,8 +40,7 @@ sim_data <- simulate_fisheries_cpue(
   n_trips  = 2000,
   n_vessels = 30,
   include_observer = TRUE,
-  include_bycatch  = TRUE
-)
+  include_bycatch  = TRUE )
 
 # 4. Fingerprint your REAL data (structural summary only)
 # fp <- fingerprint(real_data, mode = "summary", obfuscation = "partial")
@@ -57,7 +56,7 @@ write.csv(sim_data, "data/simulated_cpue.csv", row.names = FALSE)
 confidential_mode_off()
 ```
 
-## The "develop on fake, run on real" workflow with physcial separation
+## The "develop on fake, run on real" workflow with physical separation
 
 ```
   AI Machine (workshop)          Secure Machine (vault)

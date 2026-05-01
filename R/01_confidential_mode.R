@@ -298,7 +298,7 @@ prevent_ai_in_confidential_mode <- function(reason = NULL) {
 #' Emergency/manual recovery: if you need to re-enable AI tools
 #' temporarily but want to keep the library hook and session flag
 #' active, this function restores the backed-up keys without calling
-#' confidential_mode_off(). Use sparingly — the mental model is that
+#' confidential_mode_off(). Use sparingly — the idea is that
 #' keys and protection travel together, and separating them is risky.
 #'
 #' @param verbose Print status? Default \code{TRUE}.

@@ -12,6 +12,18 @@
 #' colour-coded status indicators. This is the recommended
 #' first step when starting work on a confidential project.
 #'
+#' Automated checks cover: IDE detection and known AI feature status,
+#' loaded AI-adjacent R packages, AI API keys in the live environment
+#' and .Renviron files, and .Rprofile entries indicating AI
+#' auto-connections.
+#'
+#' Note that automated coverage varies by IDE. confideR has most
+#' visibility in RStudio (where rstudioapi allows direct inspection
+#' of settings). In Positron and VS Code, IDE-level AI
+#' features (Assistant configuration, extensions) are stored in
+#' settings files that R cannot read directly; manual verification
+#' is more important in those environments.
+#'
 #' @param check_rprofile Logical. Scan .Rprofile files? Default \code{TRUE}.
 #' @param verbose Logical. Print the report? Default \code{TRUE}.
 #' @return Invisibly, a list with components \code{ide}, \code{packages},
@@ -60,8 +72,30 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
       cat("  --> Call confidential_mode_on() before loading data\n\n")
     }
 
-    # IDE
+    # IDE — show which IDE was detected and note coverage level
     .print_status_line("IDE", ide_info$ide_name, ide_info$status)
+ 
+    # Report what confideR can and cannot check for this specific IDE
+    if (ide_info$is_rstudio) {
+      cat("    [i] RStudio detected. confideR can inspect Copilot settings\n")
+      cat("        directly via rstudioapi.\n")
+    } else if (ide_info$is_positron) {
+      cat("    [i] Positron detected. Positron Assistant and Copilot settings\n")
+      cat("        are stored in settings.json, which R cannot read directly.\n")
+      cat("        Automated checks are limited to environment variables and\n")
+      cat("        loaded R packages. Manual verification is essential.\n")
+    } else if (ide_info$is_vscode) {
+      cat("    [i] VS Code detected. Extension settings, Claude Code config\n")
+      cat("        (~/.claude/), and Copilot tokens are stored outside R's\n")
+      cat("        visibility. Automated checks cover environment variables\n")
+      cat("        and R packages only. Manual verification is essential.\n")
+    } else {
+      cat("    [i] Terminal or unknown IDE detected. If you are using an IDE,\n")
+      cat("        confideR may not have detected it correctly. Check IDE AI\n")
+      cat("        settings manually before proceeding.\n")
+    }
+    cat("\n")
+    
     for (w in ide_info$warnings) cat("    ! ", w, "\n")
     if (length(ide_info$warnings)) cat("\n")
 
@@ -110,12 +144,37 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
       cat("\n  No AI risks detected by automated checks.\n")
     }
 
-    # Always show manual verification prompts — automated checks
-    # cannot catch everything.
+    # Manual checks — tailored to IDE where possible.
+    # These always appear because automated checks cannot cover everything,
+    # and the gaps are larger in some IDEs than others.
     cat("\n  Manual checks (confideR cannot verify these automatically):\n")
-    cat("    [ ] Have you confirmed Copilot/AI extensions are disabled\n")
-    cat("        in your IDE settings? (confideR checks what it can,\n")
-    cat("        but some settings are not accessible from R)\n")
+      
+    # IDE-specific manual checks come first
+    if (ide_info$is_rstudio) {
+      cat("    [ ] Global Options > Copilot: confirm Copilot is disabled\n")
+      cat("        (confideR checks this via rstudioapi, but verify visually\n")
+      cat("        if the automated check returned AMBER or could not verify)\n")
+      cat("    [ ] Addins menu: check no AI addins (gptstudio, gander, chattr)\n")
+      cat("        are active or have been invoked in this session\n")
+    } else if (ide_info$is_positron) {
+      cat("    [ ] Settings > Positron Assistant: confirm the Assistant is\n")
+      cat("        disabled or set to a local-only model\n")
+      cat("    [ ] Settings > Extensions > GitHub Copilot: confirm Copilot\n")
+      cat("        is disabled (it is enabled by default if you have a\n")
+      cat("        GitHub Copilot subscription)\n")
+      cat("    [ ] Check that your R console history does not show data output\n")
+      cat("        from head(), print(), or summary() calls — Positron Assistant\n")
+      cat("        reads console history as context\n")
+    } else if (ide_info$is_vscode) {
+      cat("    [ ] Extensions sidebar: confirm GitHub Copilot and Claude Code\n")
+      cat("        extensions are disabled\n")
+      cat("    [ ] If Claude Code was used previously, check ~/.claude/ for\n")
+      cat("        cached session content\n")
+      cat("    [ ] Check VS Code settings.json for any AI extension\n")
+      cat("        configurations (Ctrl+Shift+P > 'Open User Settings JSON')\n")
+    }
+ 
+    # Universal manual checks that apply to all IDEs
     cat("    [ ] Are any data files open in editor tabs that AI\n")
     cat("        autocomplete could read?\n")
     cat("    [ ] Does your R console show printed data output\n")
@@ -124,6 +183,15 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
     cat("        may have configured AI tools?\n")
     cat("    [ ] Have you checked for AI-enabled R packages not on\n")
     cat("        confideR's blocklist? (The blocklist is not exhaustive)\n")
+ 
+    # Remind VS Code and Positron users that automated coverage is partial
+    if (ide_info$is_vscode || ide_info$is_positron) {
+      cat("\n  NOTE: Automated AI detection is less complete in",
+          ide_info$ide_name, "than in RStudio.\n")
+      cat("  The manual checks above are especially important in this IDE.\n")
+      cat("  Consider the two-computer approach for high-sensitivity work:\n")
+      cat("  keep AI tools on a separate machine that never holds real data.\n")
+    }
     cat("\n")
   }
 

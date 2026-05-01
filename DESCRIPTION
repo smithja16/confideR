@@ -2,8 +2,8 @@ Package: confideR
 Title: Protect Confidential Fisheries Data When Using AI Coding Assistants
 Version: 0.1.0
 Authors@R: 
-    person("James", "[Surname]", role = c("aut", "cre"),
-           email = "james@example.com",
+    person("James", "Smith", role = c("aut", "cre"),
+           email = "james.a.smith@dpi.nsw.gov.au",
            comment = c(ORCID = "0000-0000-0000-0000"))
 Description: Provides tools to protect confidential fisheries data during
     AI-assisted code development. Enforces a 'confidential mode' that clears
@@ -14,8 +14,8 @@ Description: Provides tools to protect confidential fisheries data during
     CPUE data for safe use with AI coding assistants, supporting the
     'develop on simulated data, run on real data' workflow.
 License: MIT + file LICENSE
-URL: https://github.com/[user]/confideR
-BugReports: https://github.com/[user]/confideR/issues
+URL: https://github.com/smithja16/confideR
+BugReports: https://github.com/smithja16/confideR/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2

@@ -1,4 +1,4 @@
-Package: safecatch
+Package: confideR
 Title: Protect Confidential Fisheries Data When Using AI Coding Assistants
 Version: 0.1.0
 Authors@R: 
@@ -14,8 +14,8 @@ Description: Provides tools to protect confidential fisheries data during
     CPUE data for safe use with AI coding assistants, supporting the
     'develop on simulated data, run on real data' workflow.
 License: MIT + file LICENSE
-URL: https://github.com/[user]/safecatch
-BugReports: https://github.com/[user]/safecatch/issues
+URL: https://github.com/[user]/confideR
+BugReports: https://github.com/[user]/confideR/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2

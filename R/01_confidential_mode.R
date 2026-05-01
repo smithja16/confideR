@@ -1,5 +1,5 @@
 ############################################################
-# safecatch – Confidential mode
+# confideR – Confidential mode
 #
 # Provides the core session protection mechanism. When
 # confidential mode is active:
@@ -16,7 +16,7 @@
 #' Call at the start of a session before loading any confidential data.
 #' This function:
 #' \itemize{
-#'   \item Sets the \code{safecatch.confidential_mode} flag
+#'   \item Sets the \code{confider.confidential_mode} flag
 #'   \item Backs up and clears all registered AI API keys
 #'   \item Unloads any currently loaded AI-adjacent packages
 #'   \item Installs a hook on \code{library()} to block AI packages
@@ -37,13 +37,13 @@ confidential_mode_on <- function(verbose = TRUE) {
   # overwrite the real backup with empty strings and lose the keys).
   if (is_confidential_mode()) {
     if (verbose) {
-      cat("[safecatch] Confidential mode is already active. No action taken.\n")
+      cat("[confideR] Confidential mode is already active. No action taken.\n")
       cat("  To refresh after changes, call confidential_mode_off() then confidential_mode_on().\n")
     }
     return(invisible(TRUE))
   }
 
-  options(safecatch.confidential_mode = TRUE)
+  options(confider.confidential_mode = TRUE)
 
   # --- Identify keys sourced from .Renviron (durable) vs. interactively-set ---
   # .Renviron-sourced keys will reappear on next session even without restore.
@@ -54,10 +54,10 @@ confidential_mode_on <- function(verbose = TRUE) {
   # --- Back up and clear API keys ---
   backed_up           <- character(0)
   interactive_only    <- character(0)  # keys that would be lost if R crashes
-  for (key in .safecatch_api_keys) {
+  for (key in .confider_api_keys) {
     val <- Sys.getenv(key, unset = "")
     if (nzchar(val)) {
-      opt_name <- paste0("safecatch.backup.", tolower(gsub("[^A-Za-z0-9]", "_", key)))
+      opt_name <- paste0("confider.backup.", tolower(gsub("[^A-Za-z0-9]", "_", key)))
       # Extra safety: if a backup already exists (from a previous session that
       # didn't call _off), keep the first one — don't overwrite with a value
       # that might itself have come from a stale restore.
@@ -74,14 +74,16 @@ confidential_mode_on <- function(verbose = TRUE) {
   }
 
   # --- Unload AI packages ---
-  loaded_ai <- intersect(.safecatch_ai_packages, loadedNamespaces())
+  loaded_ai <- intersect(.confider_ai_packages, loadedNamespaces())
   unloaded <- character(0)
   for (pkg in loaded_ai) {
     tryCatch({
       unloadNamespace(pkg)
       unloaded <- c(unloaded, pkg)
     }, error = function(e) {
-      if (verbose) message("[safecatch] Could not unload: ", pkg, " (", e$message, ")")
+      if (verbose) message(
+        "[confideR] Could not unload: ", pkg, " (", e$message, ")"
+      )
     })
   }
 
@@ -91,7 +93,7 @@ confidential_mode_on <- function(verbose = TRUE) {
   # --- Report ---
   if (verbose) {
     cat("\n")
-    cat("=== safecatch: Confidential Mode ACTIVE ===\n\n")
+    cat("=== confideR: Confidential Mode ACTIVE ===\n\n")
     if (length(backed_up)) {
       cat("  API keys backed up & cleared: ", paste(backed_up, collapse = ", "), "\n")
       cat("    (Restored automatically by confidential_mode_off())\n")
@@ -122,7 +124,7 @@ confidential_mode_on <- function(verbose = TRUE) {
       cat("\n")
     }
 
-    cat("  Automated protections are now active. However, safecatch\n")
+    cat("  Automated protections are now active. However, confideR\n")
     cat("  cannot detect all AI features (e.g. IDE-level extensions,\n")
     cat("  unlisted packages, or shared workstation configurations).\n")
     cat("  Please also verify manually that AI tools are disabled.\n")
@@ -143,12 +145,12 @@ confidential_mode_on <- function(verbose = TRUE) {
 #' @export
 confidential_mode_off <- function(verbose = TRUE) {
 
-  options(safecatch.confidential_mode = FALSE)
+  options(confider.confidential_mode = FALSE)
 
   # --- Restore API keys ---
   restored <- character(0)
-  for (key in .safecatch_api_keys) {
-    opt_name <- paste0("safecatch.backup.", tolower(gsub("[^A-Za-z0-9]", "_", key)))
+  for (key in .confider_api_keys) {
+    opt_name <- paste0("confider.backup.", tolower(gsub("[^A-Za-z0-9]", "_", key)))
     val <- getOption(opt_name, NULL)
     if (!is.null(val) && nzchar(val)) {
       do.call(Sys.setenv, setNames(list(val), key))
@@ -161,7 +163,7 @@ confidential_mode_off <- function(verbose = TRUE) {
   .remove_library_hook()
 
   if (verbose) {
-    cat("\n=== safecatch: Confidential Mode OFF ===\n")
+    cat("\n=== confideR: Confidential Mode OFF ===\n")
     if (length(restored)) {
       cat("  API keys restored: ", paste(restored, collapse = ", "), "\n")
     }
@@ -178,7 +180,7 @@ confidential_mode_off <- function(verbose = TRUE) {
 #' @return Logical scalar.
 #' @export
 is_confidential_mode <- function() {
-  isTRUE(getOption("safecatch.confidential_mode", FALSE))
+  isTRUE(getOption("confider.confidential_mode", FALSE))
 }
 
 #' Require confidential mode (internal guard)
@@ -191,7 +193,8 @@ is_confidential_mode <- function() {
 #' @keywords internal
 require_confidential_mode <- function(reason = NULL) {
   if (!is_confidential_mode()) {
-    msg <- "[safecatch] Confidential mode is not active. Call confidential_mode_on() first."
+    msg <- paste0("[confideR] Confidential mode is not active.",
+                  " Call confidential_mode_on() first.")
     if (!is.null(reason)) msg <- paste(msg, reason)
     stop(msg, call. = FALSE)
   }
@@ -208,7 +211,7 @@ require_confidential_mode <- function(reason = NULL) {
 prevent_ai_in_confidential_mode <- function(reason = NULL) {
   if (is_confidential_mode()) {
     msg <- paste0(
-      "[safecatch] AI calls are blocked in confidential mode. ",
+      "[confideR] AI calls are blocked in confidential mode. ",
       "Use confidential_mode_off() first, or work in a separate session."
     )
     if (!is.null(reason)) msg <- paste(msg, reason)
@@ -229,25 +232,28 @@ prevent_ai_in_confidential_mode <- function(reason = NULL) {
     function(...) {
       if (is_confidential_mode()) {
         stop(
-          sprintf("[safecatch] Package '%s' is blocked in confidential mode. ", pkg_name),
-          "It is on safecatch's AI package blocklist. ",
+          sprintf(
+            "[confideR] Package '%s' is blocked in confidential mode. ",
+            pkg_name
+          ),
+          "It is on confideR's AI package blocklist. ",
           "Use confidential_mode_off() first if you need this package.",
           call. = FALSE
         )
       }
     }
   }
-  for (pkg in .safecatch_ai_packages) {
+  for (pkg in .confider_ai_packages) {
     setHook(packageEvent(pkg, "onLoad"), make_hook(pkg))
   }
-  options(safecatch.library_hook_active = TRUE)
+  options(confider.library_hook_active = TRUE)
 }
 
 .remove_library_hook <- function() {
-  for (pkg in .safecatch_ai_packages) {
+  for (pkg in .confider_ai_packages) {
     setHook(packageEvent(pkg, "onLoad"), NULL, action = "replace")
   }
-  options(safecatch.library_hook_active = FALSE)
+  options(confider.library_hook_active = FALSE)
 }
 
 # ============================================================
@@ -273,7 +279,7 @@ prevent_ai_in_confidential_mode <- function(reason = NULL) {
     for (line in lines) {
       line <- trimws(line)
       if (!nzchar(line) || startsWith(line, "#")) next
-      for (key in .safecatch_api_keys) {
+      for (key in .confider_api_keys) {
         if (grepl(paste0("^", key, "\\s*="), line)) {
           found <- c(found, key)
         }
@@ -300,8 +306,8 @@ prevent_ai_in_confidential_mode <- function(reason = NULL) {
 #' @export
 restore_api_keys <- function(verbose = TRUE) {
   restored <- character(0)
-  for (key in .safecatch_api_keys) {
-    opt_name <- paste0("safecatch.backup.", tolower(gsub("[^A-Za-z0-9]", "_", key)))
+  for (key in .confider_api_keys) {
+    opt_name <- paste0("confider.backup.", tolower(gsub("[^A-Za-z0-9]", "_", key)))
     val <- getOption(opt_name, NULL)
     if (!is.null(val) && nzchar(val)) {
       do.call(Sys.setenv, setNames(list(val), key))
@@ -311,14 +317,14 @@ restore_api_keys <- function(verbose = TRUE) {
 
   if (verbose) {
     if (length(restored)) {
-      cat("[safecatch] Restored ", length(restored), " API key(s): ",
+      cat("[confideR] Restored ", length(restored), " API key(s): ",
           paste(restored, collapse = ", "), "\n", sep = "")
       if (is_confidential_mode()) {
         cat("  Confidential mode is still ACTIVE. AI packages remain blocked.\n")
         cat("  Call confidential_mode_off() to fully exit protection.\n")
       }
     } else {
-      cat("[safecatch] No backed-up keys to restore.\n")
+      cat("[confideR] No backed-up keys to restore.\n")
       cat("  If keys were set interactively and R was restarted, they are gone\n")
       cat("  from memory. Re-enter them with Sys.setenv() or from .Renviron.\n")
     }
@@ -338,19 +344,19 @@ restore_api_keys <- function(verbose = TRUE) {
 #' @export
 api_key_status <- function() {
   live <- character(0); backed_up <- character(0)
-  for (key in .safecatch_api_keys) {
+  for (key in .confider_api_keys) {
     if (nzchar(Sys.getenv(key, unset = ""))) live <- c(live, key)
-    opt_name <- paste0("safecatch.backup.", tolower(gsub("[^A-Za-z0-9]", "_", key)))
+    opt_name <- paste0("confider.backup.", tolower(gsub("[^A-Za-z0-9]", "_", key)))
     if (!is.null(getOption(opt_name, NULL)) && nzchar(getOption(opt_name, ""))) {
       backed_up <- c(backed_up, key)
     }
   }
   on_disk <- .read_renviron_keys()
 
-  cat("\n=== safecatch: API key status ===\n\n")
+  cat("\n=== confideR: API key status ===\n\n")
   cat("  Live in environment (", length(live), "): ",
       if (length(live)) paste(live, collapse = ", ") else "(none)", "\n", sep = "")
-  cat("  Backed up by safecatch (", length(backed_up), "): ",
+  cat("  Backed up by confideR (", length(backed_up), "): ",
       if (length(backed_up)) paste(backed_up, collapse = ", ") else "(none)", "\n", sep = "")
   cat("  In .Renviron on disk (", length(on_disk), "): ",
       if (length(on_disk)) paste(on_disk, collapse = ", ") else "(none)", "\n", sep = "")

@@ -1,5 +1,5 @@
 ############################################################
-# safecatch – Fisheries data simulation
+# confideR – Fisheries data simulation
 #
 # Generates realistic simulated fisheries CPUE datasets for
 # safe use with AI coding tools. Supports common fisheries
@@ -8,7 +8,7 @@
 #
 # Two entry points:
 #   simulate_fisheries_cpue() – from parameters
-#   simulate_from_fingerprint() – from a safecatch fingerprint
+#   simulate_from_fingerprint() – from a confideR fingerprint
 ############################################################
 
 #' Simulate a fisheries CPUE dataset
@@ -92,10 +92,10 @@ simulate_fisheries_cpue <- function(
 
   # Guard: simulation should happen in a confidential session to
   # reinforce the habit of activating protection before any data work.
-  # This is a soft requirement — override with options(safecatch.require_mode_for_sim = FALSE)
-  if (isTRUE(getOption("safecatch.require_mode_for_sim", TRUE))) {
+  # This is a soft requirement — override with options(confider.require_mode_for_sim = FALSE)
+  if (isTRUE(getOption("confider.require_mode_for_sim", TRUE))) {
     require_confidential_mode(
-      "Activate confidential_mode_on() before generating data, or set\n  options(safecatch.require_mode_for_sim = FALSE) to disable this check."
+      "Activate confidential_mode_on() before generating data, or set\n  options(confider.require_mode_for_sim = FALSE) to disable this check."
     )
   }
   vessel_ids <- paste0("Vessel_", sprintf("%03d", seq_len(n_vessels)))
@@ -196,7 +196,7 @@ simulate_fisheries_cpue <- function(
   dat$depth_m[sample(n_trips, round(n_trips * 0.01))]  <- NA_integer_
 
   message(sprintf(
-    "[safecatch] Simulated %d trips, %d vessels, %d areas, %d years. Safe to use with AI tools.",
+    "[confideR] Simulated %d trips, %d vessels, %d areas, %d years. Safe to use with AI tools.",
     n_trips, n_vessels, n_areas, length(years)
   ))
 
@@ -207,11 +207,11 @@ simulate_fisheries_cpue <- function(
 #' Generate simulated data from a fingerprint
 #'
 #' Creates a synthetic dataset that matches the structure described by
-#' a \code{safecatch_fingerprint}: same column names (or aliases),
+#' a \code{confider_fingerprint}: same column names (or aliases),
 #' types, and approximate distributional properties. Useful for
 #' generating AI-safe data that mirrors your real dataset.
 #'
-#' @param fp A \code{safecatch_fingerprint} object (must have
+#' @param fp A \code{confider_fingerprint} object (must have
 #'   \code{mode = "summary"}).
 #' @param n Number of rows. Default uses the original dataset's row count.
 #' @param seed Random seed. Default 42.
@@ -220,7 +220,7 @@ simulate_fisheries_cpue <- function(
 simulate_from_fingerprint <- function(fp, n = NULL, seed = 42) {
   stopifnot(is_fingerprint(fp))
   if (is.null(fp$summary)) {
-    stop("[safecatch] Fingerprint must have mode='summary'. Re-run fingerprint() with mode='summary'.",
+    stop("[confideR] Fingerprint must have mode='summary'. Re-run fingerprint() with mode='summary'.",
          call. = FALSE)
   }
 
@@ -291,7 +291,7 @@ simulate_from_fingerprint <- function(fp, n = NULL, seed = 42) {
   dat$row_id <- NULL
 
   message(sprintf(
-    "[safecatch] Simulated %d rows x %d cols from fingerprint. Safe to use with AI tools.",
+    "[confideR] Simulated %d rows x %d cols from fingerprint. Safe to use with AI tools.",
     n, ncol(dat)
   ))
 

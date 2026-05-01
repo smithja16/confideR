@@ -1,4 +1,4 @@
 library(testthat)
-library(safecatch)
+library(confideR)
 
-test_check("safecatch")
+test_check("confideR")

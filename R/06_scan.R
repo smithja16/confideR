@@ -1,5 +1,5 @@
 ############################################################
-# safecatch – Script and notebook scanner
+# confideR – Script and notebook scanner
 #
 # Scans R scripts, R Markdown, and Quarto files for content
 # that may accidentally expose confidential data when shared
@@ -17,7 +17,7 @@
 # Likely real data fragments in string literals or hard-coded values.
 # These are conservative — false positives are expected and should be
 # reviewed by the user.
-.safecatch_scan_patterns <- list(
+.confider_scan_patterns <- list(
 
   list(
     name = "absolute_user_path",
@@ -119,7 +119,7 @@
 #'
 #' @param path Path to a .R, .Rmd, .qmd, or .Rnw file.
 #' @param patterns Optional character vector of pattern names to include
-#'   (see \code{.safecatch_scan_patterns}). Default \code{NULL} uses all.
+#'   (see \code{.confider_scan_patterns}). Default \code{NULL} uses all.
 #' @param verbose Print findings? Default \code{TRUE}.
 #' @return Invisibly, a list with \code{findings} (list of line-level
 #'   matches) and \code{status} (\code{"GREEN"} or \code{"AMBER"}).
@@ -130,19 +130,19 @@
 #' }
 scan_script <- function(path, patterns = NULL, verbose = TRUE) {
   if (!file.exists(path)) {
-    stop("[safecatch] File not found: ", path, call. = FALSE)
+    stop("[confideR] File not found: ", path, call. = FALSE)
   }
 
   # --- Read file ---
   lines <- tryCatch(readLines(path, warn = FALSE), error = function(e) {
-    stop("[safecatch] Could not read file: ", conditionMessage(e), call. = FALSE)
+    stop("[confideR] Could not read file: ", conditionMessage(e), call. = FALSE)
   })
 
   # --- Select patterns ---
   active_patterns <- if (is.null(patterns)) {
-    .safecatch_scan_patterns
+    .confider_scan_patterns
   } else {
-    Filter(function(p) p$name %in% patterns, .safecatch_scan_patterns)
+    Filter(function(p) p$name %in% patterns, .confider_scan_patterns)
   }
 
   # --- Scan each line ---
@@ -176,7 +176,7 @@ scan_script <- function(path, patterns = NULL, verbose = TRUE) {
   # --- Report ---
   if (verbose) {
     cat("\n")
-    cat(sprintf("=== safecatch: scan of %s ===\n", basename(path)))
+    cat(sprintf("=== confideR: scan of %s ===\n", basename(path)))
     cat(sprintf("  Lines scanned: %d\n", length(lines)))
     cat(sprintf("  Findings:      %d\n\n", length(findings)))
 
@@ -221,7 +221,7 @@ scan_script <- function(path, patterns = NULL, verbose = TRUE) {
 #' @export
 check_notebook_outputs <- function(path, verbose = TRUE) {
   if (!file.exists(path)) {
-    stop("[safecatch] File not found: ", path, call. = FALSE)
+    stop("[confideR] File not found: ", path, call. = FALSE)
   }
 
   ext <- tolower(tools::file_ext(path))
@@ -287,7 +287,7 @@ check_notebook_outputs <- function(path, verbose = TRUE) {
 
   if (verbose) {
     cat("\n")
-    cat(sprintf("=== safecatch: notebook check of %s ===\n", basename(path)))
+    cat(sprintf("=== confideR: notebook check of %s ===\n", basename(path)))
     if (length(findings) == 0) {
       cat("  No rendered output detected in file.\n")
       cat("  Manual review still recommended.\n\n")
@@ -356,7 +356,7 @@ check_notebook_outputs <- function(path, verbose = TRUE) {
 #   staged in git (`git diff --cached --name-only`). Useful for
 #   pre-commit review without installing a hook.
 #
-# policy_file_loader(path = "safecatch.yml"):
+# policy_file_loader(path = "confider.yml"):
 #   Load project-specific config (blocklist extensions, scan patterns,
 #   fingerprint thresholds) from a YAML file. Lets institutions
 #   distribute standard safety configs to their researchers.

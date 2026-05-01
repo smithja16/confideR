@@ -1,5 +1,5 @@
 ############################################################
-# safecatch – Package configuration and registries
+# confideR – Package configuration and registries
 #
 # Central definitions for AI package blocklists, API key
 # registries, and IDE detection patterns. Extend these
@@ -10,7 +10,7 @@
 # AI-adjacent packages to unload/block in confidential mode.
 # Intentionally conservative; add domain-specific packages as needed.
 # -------------------------------------------------------------------
-.safecatch_ai_packages <- c(
+.confider_ai_packages <- c(
 
   # IDE integrations
   "copilot",
@@ -43,7 +43,7 @@
 # -------------------------------------------------------------------
 # API key environment variables to clear in confidential mode.
 # -------------------------------------------------------------------
-.safecatch_api_keys <- c(
+.confider_api_keys <- c(
   "OPENAI_API_KEY",
   "ANTHROPIC_API_KEY",
   "GEMINI_API_KEY",
@@ -62,7 +62,7 @@
 # .Rprofile option patterns that indicate AI auto-connections.
 # These are checked by audit_rprofile().
 # -------------------------------------------------------------------
-.safecatch_rprofile_patterns <- c(
+.confider_rprofile_patterns <- c(
   "\\.chattr_chat",
   "\\.mall_chat",
   "\\.gander_chat",

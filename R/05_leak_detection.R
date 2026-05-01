@@ -1,5 +1,5 @@
 ############################################################
-# safecatch – Leak detection and utilities
+# confideR – Leak detection and utilities
 #
 # Provides functions to detect whether an R object contains
 # raw data that should not leave a confidential session.
@@ -14,7 +14,7 @@
 #' This includes data frames, matrices, fitted model objects (which
 #' embed raw data internally), and large atomic vectors.
 #'
-#' Objects of class \code{safecatch_fingerprint} are always safe.
+#' Objects of class \code{confider_fingerprint} are always safe.
 #'
 #' @param x Object to inspect.
 #' @param max_vector_length Atomic vectors longer than this are
@@ -47,7 +47,7 @@ ensure_no_data_leakage <- function(x, name = "object", max_vector_length = 500) 
   if (!is.null(reason)) {
     stop(sprintf(
       paste0(
-        "[safecatch] Potential data leakage in '%s'.\n",
+        "[confideR] Potential data leakage in '%s'.\n",
         "  Reason: %s\n",
         "  Fix:    Only pass fingerprint objects or simple text to external tools,\n",
         "          not raw data frames, fitted models, or large vectors."
@@ -63,8 +63,8 @@ ensure_no_data_leakage <- function(x, name = "object", max_vector_length = 500) 
 # ============================================================
 
 .find_leakage_reason <- function(x, path = "object", max_vector_length = 500) {
-  # safecatch objects are always safe
-  if (inherits(x, "safecatch_fingerprint")) return(NULL)
+  # confideR objects are always safe
+  if (inherits(x, "confider_fingerprint")) return(NULL)
 
   # Data frames / tibbles / data.tables
   if (is.data.frame(x) || inherits(x, c("tbl", "tbl_df", "data.table"))) {

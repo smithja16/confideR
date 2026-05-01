@@ -1,5 +1,5 @@
 ############################################################
-# safecatch – Session auditing
+# confideR – Session auditing
 #
 # Detects IDE type, active AI features, suspicious .Rprofile
 # entries, loaded AI packages, and live API keys. Returns
@@ -49,7 +49,7 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
   if (verbose) {
     cat("\n")
     cat("========================================\n")
-    cat("   safecatch: Session Audit Report\n")
+    cat("   confideR: Session Audit Report\n")
     cat("========================================\n\n")
 
     # Confidential mode
@@ -112,9 +112,9 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
 
     # Always show manual verification prompts — automated checks
     # cannot catch everything.
-    cat("\n  Manual checks (safecatch cannot verify these automatically):\n")
+    cat("\n  Manual checks (confideR cannot verify these automatically):\n")
     cat("    [ ] Have you confirmed Copilot/AI extensions are disabled\n")
-    cat("        in your IDE settings? (safecatch checks what it can,\n")
+    cat("        in your IDE settings? (confideR checks what it can,\n")
     cat("        but some settings are not accessible from R)\n")
     cat("    [ ] Are any data files open in editor tabs that AI\n")
     cat("        autocomplete could read?\n")
@@ -123,7 +123,7 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
     cat("    [ ] Are you on a shared workstation where another user\n")
     cat("        may have configured AI tools?\n")
     cat("    [ ] Have you checked for AI-enabled R packages not on\n")
-    cat("        safecatch's blocklist? (The blocklist is not exhaustive)\n")
+    cat("        confideR's blocklist? (The blocklist is not exhaustive)\n")
     cat("\n")
   }
 
@@ -198,7 +198,7 @@ audit_rprofile <- function(verbose = TRUE) {
       # Skip comments
       stripped <- trimws(line)
       if (startsWith(stripped, "#")) next
-      for (pat in .safecatch_rprofile_patterns) {
+      for (pat in .confider_rprofile_patterns) {
         if (grepl(pat, line, ignore.case = TRUE)) {
           findings <- c(findings, list(list(
             file = fpath,
@@ -238,10 +238,10 @@ audit_rprofile <- function(verbose = TRUE) {
 #' @return Invisibly, a list with \code{loaded} and \code{status}.
 #' @export
 audit_packages <- function(verbose = TRUE) {
-  loaded <- intersect(.safecatch_ai_packages, loadedNamespaces())
+  loaded <- intersect(.confider_ai_packages, loadedNamespaces())
   # Also check attached packages
   attached <- intersect(
-    paste0("package:", .safecatch_ai_packages),
+    paste0("package:", .confider_ai_packages),
     search()
   )
   attached_names <- sub("^package:", "", attached)
@@ -281,7 +281,7 @@ audit_env_keys <- function(verbose = TRUE) {
 
   # --- Check live environment ---
   found_live <- character(0)
-  for (key in .safecatch_api_keys) {
+  for (key in .confider_api_keys) {
     if (nzchar(Sys.getenv(key, unset = ""))) {
       found_live <- c(found_live, key)
     }
@@ -304,7 +304,7 @@ audit_env_keys <- function(verbose = TRUE) {
       line <- trimws(lines[i])
       if (!nzchar(line) || startsWith(line, "#")) next
       # .Renviron uses KEY=value format
-      for (key in .safecatch_api_keys) {
+      for (key in .confider_api_keys) {
         if (grepl(paste0("^", key, "\\s*="), line)) {
           found_on_disk <- c(found_on_disk, list(list(
             file = fpath,
@@ -352,15 +352,15 @@ audit_env_keys <- function(verbose = TRUE) {
 #'
 #' @return Invisible \code{NULL}.
 #' @export
-safecatch_status <- function() {
+confider_status <- function() {
   mode <- is_confidential_mode()
-  hook <- isTRUE(getOption("safecatch.library_hook_active", FALSE))
-  n_keys <- sum(vapply(.safecatch_api_keys, function(k) nzchar(Sys.getenv(k, "")), logical(1)))
-  n_pkgs <- length(intersect(.safecatch_ai_packages, loadedNamespaces()))
+  hook <- isTRUE(getOption("confider.library_hook_active", FALSE))
+  n_keys <- sum(vapply(.confider_api_keys, function(k) nzchar(Sys.getenv(k, "")), logical(1)))
+  n_pkgs <- length(intersect(.confider_ai_packages, loadedNamespaces()))
   ide <- .detect_ide()
 
   cat(sprintf(
-    "[safecatch] mode=%s | hook=%s | keys=%d | ai_pkgs=%d | ide=%s\n",
+    "[confideR] mode=%s | hook=%s | keys=%d | ai_pkgs=%d | ide=%s\n",
     if (mode) "CONFIDENTIAL" else "open",
     if (hook) "active" else "off",
     n_keys, n_pkgs, ide$name

@@ -1,5 +1,5 @@
 ############################################################
-# safecatch – Data fingerprinting
+# confideR – Data fingerprinting
 #
 # Extracts a privacy-safe structural summary of a confidential
 # data frame: column names, types, missingness, and optionally
@@ -25,7 +25,7 @@
 #'   to treat as confidential. If \code{NULL}, auto-detected.
 #' @param anonymise List of thresholds: \code{numeric_digits},
 #'   \code{min_level_size}, \code{max_levels_shown}, \code{date_precision}.
-#' @return An object of class \code{safecatch_fingerprint}.
+#' @return An object of class \code{confider_fingerprint}.
 #' @export
 fingerprint <- function(
     data,
@@ -87,7 +87,7 @@ fingerprint <- function(
       confidential   = confidential,
       .alias_map     = alias_map    # internal - never sent to AI
     ),
-    class = "safecatch_fingerprint"
+    class = "confider_fingerprint"
   )
 
   # 5. Summary statistics
@@ -98,17 +98,17 @@ fingerprint <- function(
   out
 }
 
-#' Test whether an object is a safecatch fingerprint
+#' Test whether an object is a confideR fingerprint
 #' @param x Any R object.
 #' @return Logical.
 #' @export
-is_fingerprint <- function(x) inherits(x, "safecatch_fingerprint")
+is_fingerprint <- function(x) inherits(x, "confider_fingerprint")
 
 #' Retrieve the alias-to-original-name mapping
 #'
 #' For in-session reference only. Never include in prompts or payloads.
 #'
-#' @param fp A \code{safecatch_fingerprint} object.
+#' @param fp A \code{confider_fingerprint} object.
 #' @return Data frame with columns \code{original} and \code{alias}.
 #' @export
 alias_map <- function(fp) {
@@ -126,14 +126,14 @@ alias_map <- function(fp) {
 #' for copy-pasting into a browser AI chat (Scenario 1). No raw values
 #' are included.
 #'
-#' @param fp A \code{safecatch_fingerprint} object.
+#' @param fp A \code{confider_fingerprint} object.
 #' @return Character string (invisibly). Also prints to console.
 #' @export
 format_for_prompt <- function(fp) {
   stopifnot(is_fingerprint(fp))
 
   lines <- c(
-    "## Dataset structural summary (safecatch fingerprint)",
+    "## Dataset structural summary (confideR fingerprint)",
     sprintf("Approximate size: %d rows x %d columns", fp$meta$n_rows, fp$meta$n_cols),
     ""
   )
@@ -147,8 +147,10 @@ format_for_prompt <- function(fp) {
     if (!is.null(fp$summary)) {
       s <- fp$summary[[r$alias]]
       if (!is.null(s$stats)) {
-        stat_strs <- vapply(names(s$stats), function(nm) {
-          sprintf("%s=%s", nm, s$stats[[nm]])
+        stats_nn <- Filter(Negate(is.null), s$stats)
+        stat_strs <- vapply(names(stats_nn), function(nm) {
+          val <- stats_nn[[nm]]
+          sprintf("%s=%s", nm, if (length(val) > 1) paste(val, collapse = "/") else val)
         }, character(1))
         lines <- c(lines, sprintf("    %s", paste(stat_strs, collapse = ", ")))
       }
@@ -179,8 +181,8 @@ format_for_prompt <- function(fp) {
 # ============================================================
 
 #' @export
-print.safecatch_fingerprint <- function(x, ...) {
-  cat("-- safecatch fingerprint --\n")
+print.confider_fingerprint <- function(x, ...) {
+  cat("-- confideR fingerprint --\n")
   cat(sprintf("  Rows: %d   Cols: %d\n", x$meta$n_rows, x$meta$n_cols))
   cat(sprintf("  Mode: %s   Obfuscation: %s\n", x$meta$mode, x$meta$obfuscation))
   n_conf <- sum(x$columns$confidential)

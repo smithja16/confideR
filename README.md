@@ -1,10 +1,10 @@
-# safecatch <img src="man/figures/logo.png" align="right" height="139" />
+# confideR <img src="man/figures/logo.png" align="right" height="139" />
 
-> Protect confidential fisheries data when using AI coding assistants
+> Protect confidential research data when using AI coding assistants
 
 ## Overview
 
-**safecatch** is a companion R package to the paper *"Protecting confidential fisheries data when using AI coding assistants: A practical guide"*. It provides four core capabilities:
+**confideR** is a companion R package to the paper *"Protecting confidential fisheries data when using AI coding assistants: A practical guide"*. It provides four core capabilities:
 
 1. **Confidential mode** — Activate session-level protection that clears AI API keys, unloads AI packages, and blocks them from being loaded.
 
@@ -18,16 +18,16 @@
 
 ```r
 # From GitHub (when published)
-# remotes::install_github("[user]/safecatch")
+# remotes::install_github("[user]/confideR")
 
 # For now, source from local directory
-devtools::load_all("path/to/safecatch")
+devtools::load_all("path/to/confideR")
 ```
 
 ## Quick start
 
 ```r
-library(safecatch)
+library(confideR)
 
 # 1. Audit your session FIRST
 audit_session()
@@ -85,7 +85,7 @@ confidential_mode_off()
 - `audit_rprofile()` — scan .Rprofile for AI config
 - `audit_packages()` — check for loaded AI packages
 - `audit_env_keys()` — check for AI API keys
-- `safecatch_status()` — one-line status summary
+- `confider_status()` — one-line status summary
 
 ### Fingerprinting
 - `fingerprint()` — create structural summary
@@ -102,10 +102,9 @@ confidential_mode_off()
 
 ## Citation
 
-If you use safecatch in your research, please cite:
+If you use confideR in your research, please cite:
 
 ```
 [Authors] (2026). Protecting confidential data when using AI
 coding assistants: A practical guide. [Journal]. DOI: [pending]
 ```
-

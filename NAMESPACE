@@ -33,10 +33,10 @@ export(scan_script)
 export(check_notebook_outputs)
 
 # Utilities
-export(safecatch_status)
+export(confider_status)
 
 importFrom(stats, quantile, sd, rnorm, rlnorm, runif, rbinom, plogis, median)
 importFrom(utils, read.csv, read.table, head, packageVersion)
 
 # S3 methods
-S3method(print, safecatch_fingerprint)
+S3method(print, confider_fingerprint)

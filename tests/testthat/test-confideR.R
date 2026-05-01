@@ -71,7 +71,7 @@ test_that("fingerprint produces safe output", {
   confidential_mode_on(verbose = FALSE)
   dat <- simulate_fisheries_cpue(n_trips = 100, n_vessels = 5, seed = 1)
   fp <- fingerprint(dat, mode = "summary", obfuscation = "partial")
-  expect_s3_class(fp, "safecatch_fingerprint")
+  expect_s3_class(fp, "confider_fingerprint")
   expect_false(contains_data_like(fp))
   expect_equal(fp$meta$n_rows, 100)
   confidential_mode_off(verbose = FALSE)

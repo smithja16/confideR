@@ -76,15 +76,15 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
     .print_status_line("IDE", ide_info$ide_name, ide_info$status)
  
     # Report what confideR can and cannot check for this specific IDE
-    if (ide_info$is_rstudio) {
+    if (ide_info$ide_detail$is_rstudio) {
       cat("    [i] RStudio detected. confideR can inspect Copilot settings\n")
       cat("        directly via rstudioapi.\n")
-    } else if (ide_info$is_positron) {
+    } else if (ide_info$ide_detail$is_positron) {
       cat("    [i] Positron detected. Positron Assistant and Copilot settings\n")
       cat("        are stored in settings.json, which R cannot read directly.\n")
       cat("        Automated checks are limited to environment variables and\n")
       cat("        loaded R packages. Manual verification is essential.\n")
-    } else if (ide_info$is_vscode) {
+    } else if (ide_info$ide_detail$is_vscode) {
       cat("    [i] VS Code detected. Extension settings, Claude Code config\n")
       cat("        (~/.claude/), and Copilot tokens are stored outside R's\n")
       cat("        visibility. Automated checks cover environment variables\n")
@@ -150,13 +150,13 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
     cat("\n  Manual checks (confideR cannot verify these automatically):\n")
       
     # IDE-specific manual checks come first
-    if (ide_info$is_rstudio) {
+    if (ide_info$ide_detail$is_rstudio) {
       cat("    [ ] Global Options > Copilot: confirm Copilot is disabled\n")
       cat("        (confideR checks this via rstudioapi, but verify visually\n")
       cat("        if the automated check returned AMBER or could not verify)\n")
       cat("    [ ] Addins menu: check no AI addins (gptstudio, gander, chattr)\n")
       cat("        are active or have been invoked in this session\n")
-    } else if (ide_info$is_positron) {
+    } else if (ide_info$ide_detail$is_positron) {
       cat("    [ ] Settings > Positron Assistant: confirm the Assistant is\n")
       cat("        disabled or set to a local-only model\n")
       cat("    [ ] Settings > Extensions > GitHub Copilot: confirm Copilot\n")
@@ -165,7 +165,7 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
       cat("    [ ] Check that your R console history does not show data output\n")
       cat("        from head(), print(), or summary() calls — Positron Assistant\n")
       cat("        reads console history as context\n")
-    } else if (ide_info$is_vscode) {
+    } else if (ide_info$ide_detail$is_vscode) {
       cat("    [ ] Extensions sidebar: confirm GitHub Copilot and Claude Code\n")
       cat("        extensions are disabled\n")
       cat("    [ ] If Claude Code was used previously, check ~/.claude/ for\n")
@@ -185,7 +185,7 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
     cat("        confideR's blocklist? (The blocklist is not exhaustive)\n")
  
     # Remind VS Code and Positron users that automated coverage is partial
-    if (ide_info$is_vscode || ide_info$is_positron) {
+    if (ide_info$ide_detail$is_vscode || ide_info$ide_detail$is_positron) {
       cat("\n  NOTE: Automated AI detection is less complete in",
           ide_info$ide_name, "than in RStudio.\n")
       cat("  The manual checks above are especially important in this IDE.\n")

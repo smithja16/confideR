@@ -6,6 +6,12 @@
 # with AI tools. Flags hardcoded values, suspicious file
 # paths, descriptive comments, and rendered notebook outputs.
 #
+# Patterns cover common identifiers across ecological,
+# environmental, fisheries, agricultural, and social science
+# contexts. The built-in list is conservative; pass custom
+# patterns via the `extra_patterns` argument or filter to
+# a named subset with the `patterns` argument.
+#
 # Designed for the workflow:
 #   scan_script("my_analysis.R")
 #   # review findings, manually redact or regenerate
@@ -52,24 +58,36 @@
   ),
 
   list(
-    name = "fisheries_vessel_pattern",
-    # Common vessel-name patterns: FV Name, MV Name, F/V Name
+    name = "vessel_identifier",
+    # Common vessel-name patterns: FV Name, MV Name, F/V Name (fisheries)
     pattern = "\\b(FV|MV|F/V|MFV)\\s+[A-Z][A-Za-z0-9]+",
     advice = "Vessel name detected (FV/MV prefix). Replace with anonymised vessel ID."
   ),
 
   list(
-    name = "permit_like_id",
-    # Patterns like FIS-2024-0892, PERMIT_XYZ_001
-    pattern = "\\b(FIS|PERMIT|OBS|LIC)[-_][A-Z0-9]+[-_][A-Z0-9]+\\b",
-    advice = "Identifier pattern detected (possible permit/licence number). Anonymise before sharing."
+    name = "structured_identifier",
+    # Structured ID codes common across domains:
+    # fisheries: FIS-2024-0892, LIC-001
+    # ecological: SITE-A01-2024, PLOT-001
+    # social/health: PAT-2024-001, RESP-001, HH-042
+    # agricultural: FARM-XYZ-001
+    pattern = "\\b(FIS|PERMIT|OBS|LIC|PAT|SUBJ|SITE|PLOT|HH|RESP|REC|REF|FARM|SAMP|CASE|TRAP|NEST)[-_][A-Z0-9]+[-_][A-Z0-9]+\\b",
+    advice = "Structured identifier detected (possible permit, licence, site, participant, or record code). Anonymise before sharing."
   ),
 
   list(
     name = "descriptive_comment",
-    # Comments that mention real-sounding contexts
-    pattern = "#\\s*.*\\b(vessel|skipper|observer|fisher|fishery|reserve|permit|licence|license|client|patient|subject)\\b",
-    advice = "Comment references a domain-specific entity. Check whether it names a real vessel, person, or location."
+    # Comments that mention real-sounding entities across domains.
+    # Fisheries: vessel, skipper, fisher, fishery
+    # Ecological/environmental: site, plot, transect, station, catchment
+    # Social/health: patient, client, respondent, household, participant, informant
+    # Agricultural: farm, grower, landowner
+    pattern = paste0(
+      "#\\s*.*\\b(vessel|skipper|observer|fisher|fishery|reserve|permit|licence|license",
+      "|client|patient|subject|respondent|household|participant|informant|interviewee",
+      "|farm|grower|landowner|site|plot|transect|station|catchment|paddock)\\b"
+    ),
+    advice = "Comment references a domain-specific entity. Check whether it names a real person, location, or unit."
   ),
 
   list(

@@ -1,18 +1,20 @@
 Package: confideR
-Title: Protect Confidential Fisheries Data When Using AI Coding Assistants
+Title: Protect Confidential Research Data When Using AI Coding Assistants
 Version: 0.1.0
-Authors@R: 
+Authors@R:
     person("James", "Smith", role = c("aut", "cre"),
            email = "james.a.smith@dpi.nsw.gov.au",
            comment = c(ORCID = "0000-0000-0000-0000"))
-Description: Provides tools to protect confidential fisheries data during
-    AI-assisted code development. Enforces a 'confidential mode' that clears
-    AI API keys, blocks AI-adjacent R packages, and gates data loading.
-    Audits the current IDE (RStudio, Positron, VS Code) for active AI
-    features. Generates privacy-safe data schemas ('fingerprints') from
-    real datasets without exposing raw values. Simulates realistic fisheries
-    CPUE data for safe use with AI coding assistants, supporting the
-    'develop on simulated data, run on real data' workflow.
+Description: Provides tools to protect confidential research data during
+    AI-assisted code development in ecological, environmental, fisheries,
+    agricultural, and social science settings. Enforces a 'confidential mode'
+    that clears AI API keys, blocks AI-adjacent R packages, and gates data
+    loading. Audits the current IDE (RStudio, Positron, VS Code) for active
+    AI features, including extension scanning and system process detection.
+    Generates privacy-safe structural summaries ('fingerprints') from real
+    datasets without exposing raw values. Simulates realistic survey datasets
+    for safe use with AI coding assistants, supporting the 'develop on
+    simulated data, run on real data' workflow.
 License: MIT + file LICENSE
 URL: https://github.com/smithja16/confideR
 BugReports: https://github.com/smithja16/confideR/issues

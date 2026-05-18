@@ -4,15 +4,17 @@
 
 ## Overview
 
-**confideR** is a companion R package to the paper *"Protecting confidential fisheries data when using AI coding assistants: A practical guide"*. It provides four core capabilities:
+**confideR** is a companion R package to the paper *"Protecting confidential research data when using AI coding assistants: A practical guide"*. It is designed for researchers in ecological, environmental, fisheries, agricultural, and social science settings who use AI tools for code development but cannot expose the underlying data.
+
+It provides four core capabilities:
 
 1. **Confidential mode** — Activate session-level protection that clears AI API keys, unloads AI packages, and blocks them from being loaded.
 
-2. **Session auditing** — Detect your IDE (RStudio, Positron, VS Code), scan `.Rprofile` for AI auto-connections, report loaded AI packages and active API keys.
+2. **Session auditing** — Detect your IDE (RStudio, Positron, VS Code), scan `.Rprofile` for AI auto-connections, check for AI API keys, scan the VS Code extension directory, and query the system process table for active AI agent processes.
 
-3. **Data fingerprinting** — Extract a privacy-safe structural summary of your confidential dataset (column names, types, distributions) without exposing any raw values. Supports three obfuscation levels.
+3. **Data fingerprinting** — Extract a privacy-safe structural summary of your confidential dataset (column names, types, distributions) without exposing any raw values. Supports three obfuscation levels. Auto-detects confidential columns across fisheries, ecological, environmental, agricultural, and social science naming conventions.
 
-4. **Fisheries data simulation** — Generate realistic simulated CPUE datasets with vessel effects, seasonal patterns, spatial areas, observer data, and bycatch — safe to use with any AI tool.
+4. **Data simulation** — Generate realistic simulated survey datasets with group effects, strata effects, seasonal patterns, observer coverage, and secondary observations — safe to use with any AI tool. Supports the *develop on simulated data, run on real data* workflow.
 
 ## Installation
 
@@ -36,17 +38,18 @@ audit_session()
 confidential_mode_on()
 
 # 3. Simulate data for AI-assisted development
-sim_data <- simulate_fisheries_cpue(
-  n_trips  = 2000,
-  n_vessels = 30,
-  include_observer = TRUE,
-  include_bycatch  = TRUE )
+sim_data <- simulate_data(
+  n_obs    = 2000,
+  n_groups = 30,
+  include_observer  = TRUE,
+  include_secondary = TRUE
+)
 
 # 4. Fingerprint your REAL data (structural summary only)
 # fp <- fingerprint(real_data, mode = "summary", obfuscation = "partial")
 
 # 5. Write simulated data for your AI workspace
-write.csv(sim_data, "data/simulated_cpue.csv", row.names = FALSE)
+write.csv(sim_data, "data/simulated_data.csv", row.names = FALSE)
 # This file is safe to use with any AI tool.
 
 # 6. Format fingerprint for copy-pasting into a browser AI chat
@@ -61,7 +64,7 @@ confidential_mode_off()
 ```
   AI Machine (workshop)          Secure Machine (vault)
   ========================       ========================
-  simulated_cpue.csv             real_cpue.csv
+  simulated_data.csv             real_data.csv
   + AI tools enabled             + NO AI tools
   + develop analysis code        + run final analysis
            |                              ^
@@ -82,8 +85,9 @@ confidential_mode_off()
 - `audit_session()` — comprehensive audit report
 - `audit_ide()` — detect IDE and AI features
 - `audit_rprofile()` — scan .Rprofile for AI config
-- `audit_packages()` — check for loaded AI packages
+- `audit_packages()` — check for loaded AI packages and option residuals
 - `audit_env_keys()` — check for AI API keys
+- `audit_processes()` — scan system process table for AI agent processes
 - `confider_status()` — one-line status summary
 
 ### Fingerprinting
@@ -92,12 +96,16 @@ confidential_mode_off()
 - `format_for_prompt()` — format for AI chat
 
 ### Simulation
-- `simulate_fisheries_cpue()` — generate CPUE data from parameters
+- `simulate_data()` — generate survey data from parameters
 - `simulate_from_fingerprint()` — generate data from a fingerprint
 
 ### Leak detection
 - `contains_data_like()` — check if object contains raw data
 - `ensure_no_data_leakage()` — error if raw data detected
+
+### Script scanning
+- `scan_script()` — check .R/.Rmd/.qmd for data exposure patterns
+- `check_notebook_outputs()` — check for rendered output in notebooks
 
 ## Citation
 

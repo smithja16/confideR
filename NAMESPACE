@@ -13,6 +13,7 @@ export(audit_ide)
 export(audit_rprofile)
 export(audit_packages)
 export(audit_env_keys)
+export(audit_processes)
 
 # Fingerprinting
 export(fingerprint)
@@ -21,7 +22,7 @@ export(alias_map)
 export(format_for_prompt)
 
 # Simulation
-export(simulate_fisheries_cpue)
+export(simulate_data)
 export(simulate_from_fingerprint)
 
 # Leak detection

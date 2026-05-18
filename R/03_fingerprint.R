@@ -209,20 +209,30 @@ print.confider_fingerprint <- function(x, ...) {
   "other"
 }
 
+# Auto-detection covers fisheries, ecological, environmental,
+# agricultural, and social/health science naming conventions.
+# Pass an explicit `confidential` list to fingerprint() to override.
 .detect_confidential_cols <- function(data, col_types) {
   nm <- names(data)
   nm_l <- tolower(nm)
   n <- nrow(data)
 
-  # Identifier patterns (fisheries-aware)
+  # Identifier patterns — covers fisheries, ecological, environmental,
+  # agricultural, and social/health science column naming conventions.
   id_pat <- paste0(
     "\\bid\\b|_id$|^id_|^id$",
     "|name$|_name$|^name_",
     "|phone|email|address|postcode|zipcode|dob|birthdate",
     "|ssn|passport|license|licence|permit|rego|callsign",
-    "|skipper|vessel|boat|fisher|captain|master",
-    "|observer|crew|client|patient|participant",
-    "|registration|hull"
+    # fisheries
+    "|skipper|vessel|boat|fisher|captain|master|hull",
+    # ecological / environmental
+    "|observer|crew|site|plot|transect|station|quadrat|trap|nest",
+    # agricultural
+    "|farm|grower|landowner|paddock|property",
+    # social / health
+    "|client|patient|participant|respondent|household|informant|interviewee|donor|recipient",
+    "|registration"
   )
   id_by_name <- nm[grepl(id_pat, nm_l)]
 

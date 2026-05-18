@@ -177,6 +177,57 @@
 )
 
 # -------------------------------------------------------------------
+# VS Code extension directory name patterns.
+# Matched case-insensitively against subdirectory names in
+# ~/.vscode/extensions/ by .scan_vscode_extensions().
+# -------------------------------------------------------------------
+.confider_vscode_ext_patterns <- c(
+  "copilot",              # GitHub Copilot and Copilot Chat
+  "claude",               # Claude / Anthropic extensions
+  "codeium",              # Codeium
+  "tabnine",              # Tabnine
+  "continue\\.continue",  # Continue
+  "cody",                 # Sourcegraph Cody
+  "amazonq",              # Amazon Q
+  "codewhisperer",        # Amazon CodeWhisperer (legacy name)
+  "cursor"                # Cursor AI features
+)
+
+# -------------------------------------------------------------------
+# Process name fragments for system process table scanning.
+# Matched case-insensitively against full ps/tasklist output.
+# Returns AMBER — presence on machine does not confirm the process
+# is connected to the current R session.
+# -------------------------------------------------------------------
+.confider_ai_processes <- c(
+  "copilot-agent",           # GitHub Copilot language server
+  "copilot_language_server", # Alternative Copilot process name
+  "codeium-agent",           # Codeium extension agent
+  "tabnine-agent",           # Tabnine agent
+  "continue-server",         # Continue extension server
+  "cody-agent",              # Sourcegraph Cody agent
+  "amazon-q-agent",          # Amazon Q agent
+  "cursor-agent"             # Cursor agent
+)
+
+# -------------------------------------------------------------------
+# R option name patterns indicating AI package configuration set
+# earlier in the session (even if the package is now unloaded).
+# -------------------------------------------------------------------
+.confider_ai_option_patterns <- c(
+  "\\.chattr_chat",
+  "\\.mall_chat",
+  "\\.gander_chat",
+  "ellmer",
+  "tidyllm",
+  "rollama",
+  "ollamar",
+  "openai",
+  "anthropic",
+  "gemini"
+)
+
+# -------------------------------------------------------------------
 # Null coalescing operator
 # -------------------------------------------------------------------
 `%||%` <- function(a, b) if (!is.null(a)) a else b

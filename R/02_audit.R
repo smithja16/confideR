@@ -37,13 +37,15 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
   pkg_info   <- audit_packages(verbose = FALSE)
   key_info   <- audit_env_keys(verbose = FALSE)
   rprof_info <- if (check_rprofile) audit_rprofile(verbose = FALSE) else NULL
+  proc_info  <- audit_processes(verbose = FALSE)
 
   # Overall status
   statuses <- c(
     ide_info$status,
     pkg_info$status,
     key_info$status,
-    if (!is.null(rprof_info)) rprof_info$status
+    if (!is.null(rprof_info)) rprof_info$status,
+    proc_info$status
   )
   overall <- if ("RED" %in% statuses) "RED"
              else if ("AMBER" %in% statuses) "AMBER"
@@ -54,6 +56,7 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
     packages  = pkg_info,
     env_keys  = key_info,
     rprofile  = rprof_info,
+    processes = proc_info,
     confidential_mode = is_confidential_mode(),
     overall_status    = overall
   )
@@ -77,8 +80,13 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
  
     # Report what confideR can and cannot check for this specific IDE
     if (ide_info$ide_detail$is_rstudio) {
-      cat("    [i] RStudio detected. confideR can inspect Copilot settings\n")
-      cat("        directly via rstudioapi.\n")
+      if (isTRUE(ide_info$ide_detail$is_workbench)) {
+        cat("    [i] Posit Workbench detected. confideR can inspect Copilot settings\n")
+        cat("        via rstudioapi, but server-level AI features are not visible to R.\n")
+      } else {
+        cat("    [i] RStudio detected. confideR can inspect Copilot settings\n")
+        cat("        directly via rstudioapi.\n")
+      }
     } else if (ide_info$ide_detail$is_positron) {
       cat("    [i] Positron detected. Positron Assistant and Copilot settings\n")
       cat("        are stored in settings.json, which R cannot read directly.\n")
@@ -129,6 +137,23 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
       }
     }
 
+    # AI options (residual from packages used earlier in session)
+    if (length(pkg_info$ai_options)) {
+      cat("    ! AI-related R options set (package may have been active earlier):",
+          paste(pkg_info$ai_options, collapse = ", "), "\n")
+    }
+
+    # Processes
+    .print_status_line("AI processes",
+      if (length(proc_info$found)) paste(proc_info$found, collapse = ", ")
+      else "(none)",
+      proc_info$status
+    )
+    if (length(proc_info$found)) {
+      cat("    [i] Process detected on this machine but connection to this\n")
+      cat("        R session is not confirmed. Verify manually.\n")
+    }
+
     cat("\n  ----------------------------------------\n")
     .print_status_line("OVERALL", overall, overall)
     cat("  ----------------------------------------\n")
@@ -151,6 +176,10 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
       
     # IDE-specific manual checks come first
     if (ide_info$ide_detail$is_rstudio) {
+      if (isTRUE(ide_info$ide_detail$is_workbench)) {
+        cat("    [ ] Contact your server administrator to confirm no server-level\n")
+        cat("        AI features (Workbench Assistant) are enabled for this user\n")
+      }
       cat("    [ ] Global Options > Copilot: confirm Copilot is disabled\n")
       cat("        (confideR checks this via rstudioapi, but verify visually\n")
       cat("        if the automated check returned AMBER or could not verify)\n")
@@ -159,19 +188,21 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
     } else if (ide_info$ide_detail$is_positron) {
       cat("    [ ] Settings > Positron Assistant: confirm the Assistant is\n")
       cat("        disabled or set to a local-only model\n")
+      cat("        (confideR checks settings.json, but verify visually)\n")
       cat("    [ ] Settings > Extensions > GitHub Copilot: confirm Copilot\n")
-      cat("        is disabled (it is enabled by default if you have a\n")
-      cat("        GitHub Copilot subscription)\n")
+      cat("        is disabled (confideR checks settings.json, but verify visually)\n")
       cat("    [ ] Check that your R console history does not show data output\n")
       cat("        from head(), print(), or summary() calls — Positron Assistant\n")
       cat("        reads console history as context\n")
     } else if (ide_info$ide_detail$is_vscode) {
-      cat("    [ ] Extensions sidebar: confirm GitHub Copilot and Claude Code\n")
-      cat("        extensions are disabled\n")
-      cat("    [ ] If Claude Code was used previously, check ~/.claude/ for\n")
-      cat("        cached session content\n")
-      cat("    [ ] Check VS Code settings.json for any AI extension\n")
-      cat("        configurations (Ctrl+Shift+P > 'Open User Settings JSON')\n")
+      cat("    [ ] Extensions sidebar: confirm Copilot and other AI extensions\n")
+      cat("        are disabled (confideR scans ~/.vscode/extensions/ but cannot\n")
+      cat("        read per-workspace enabled/disabled state)\n")
+      cat("    [ ] Check VS Code settings.json for AI extension configuration\n")
+      cat("        (Ctrl+Shift+P > 'Open User Settings JSON')\n")
+      cat("    [ ] Be aware that some VS Code extensions scan terminal output\n")
+      cat("        to attach to R sessions without loading any R package —\n")
+      cat("        these cannot be detected from within R\n")
     }
  
     # Universal manual checks that apply to all IDEs
@@ -315,9 +346,13 @@ audit_packages <- function(verbose = TRUE) {
   attached_names <- sub("^package:", "", attached)
   all_active <- unique(c(loaded, attached_names))
 
-  status <- if (length(all_active) > 0) "RED" else "GREEN"
+  # Scan R options for AI package configuration set earlier in session
+  # (catches packages that were loaded and configured but since unloaded).
+  ai_opts <- .scan_ai_options()
 
-  result <- list(loaded = all_active, status = status)
+  status <- if (length(all_active) > 0 || length(ai_opts) > 0) "RED" else "GREEN"
+
+  result <- list(loaded = all_active, ai_options = ai_opts, status = status)
 
   if (verbose) {
     if (length(all_active)) {
@@ -326,6 +361,11 @@ audit_packages <- function(verbose = TRUE) {
       cat("\n  These packages may transmit data to external servers.\n\n")
     } else {
       cat("\n  No AI packages loaded.\n\n")
+    }
+    if (length(ai_opts)) {
+      cat("  AI-related R options detected (may indicate prior AI package use):\n")
+      for (o in ai_opts) cat("    ! ", o, "\n")
+      cat("\n")
     }
   }
 
@@ -452,12 +492,15 @@ confider_status <- function() {
     ))
   }
 
-  # --- RStudio ---
+  # --- RStudio / Posit Workbench ---
   if (nzchar(Sys.getenv("RSTUDIO", ""))) {
+    is_workbench <- grepl("server", Sys.getenv("RSTUDIO_PROGRAM_MODE", ""),
+                          ignore.case = TRUE)
     return(list(
-      name = "RStudio",
+      name = if (is_workbench) "Posit Workbench" else "RStudio",
       is_positron = FALSE,
       is_rstudio = TRUE,
+      is_workbench = is_workbench,
       is_vscode = FALSE,
       version = Sys.getenv("RSTUDIO_VERSION", "unknown")
     ))
@@ -500,26 +543,39 @@ confider_status <- function() {
   warnings <- character(0)
 
   if (ide$is_positron) {
-    # Positron: check for active AI configuration via environment
-    # Positron sets specific env vars when Assistant features are active
-    assistant_configured <- nzchar(Sys.getenv("ANTHROPIC_API_KEY", "")) ||
-                            nzchar(Sys.getenv("OPENAI_API_KEY", ""))
-    if (assistant_configured) {
+    settings <- .read_positron_settings()
+
+    if (isTRUE(settings$copilot)) {
       warnings <- c(warnings,
-        "Positron Assistant has API keys available and may transmit console history, loaded data structures, and session state."
+        "GitHub Copilot is ENABLED in Positron settings. It transmits code context to GitHub's servers. Disable in Settings > Extensions > GitHub Copilot."
+      )
+    } else if (is.na(settings$copilot)) {
+      warnings <- c(warnings,
+        "Could not read Copilot status from Positron settings.json. If you have a GitHub Copilot subscription, verify it is disabled in Settings > Extensions > GitHub Copilot."
       )
     }
+    # settings$copilot == FALSE: confirmed disabled, no warning.
 
-    # Copilot is enabled by default in Positron if you have a subscription,
-    # but we can't easily detect it without a Positron-specific API.
-    # Give a softer advisory.
-    warnings <- c(warnings,
-      "If you have a GitHub Copilot subscription, it is enabled by default in Positron. Check Settings > Positron Assistant to verify."
-    )
+    if (isTRUE(settings$assistant)) {
+      warnings <- c(warnings,
+        "Positron Assistant is ENABLED. It may transmit console history and session context to external servers. Disable in Settings > Positron Assistant."
+      )
+    }
+    # assistant == FALSE or NA with no keys: no advisory — avoids alert fatigue.
+
+    # API keys as a secondary signal only when settings could not be read.
+    if (is.na(settings$assistant)) {
+      assistant_keys <- nzchar(Sys.getenv("ANTHROPIC_API_KEY", "")) ||
+                        nzchar(Sys.getenv("OPENAI_API_KEY", ""))
+      if (assistant_keys) {
+        warnings <- c(warnings,
+          "AI API keys are present in the environment. If Positron Assistant is configured, it may use them to transmit console history as context."
+        )
+      }
+    }
   }
 
   if (ide$is_rstudio) {
-    # Try to check Copilot status programmatically
     copilot_checked <- FALSE
     if (requireNamespace("rstudioapi", quietly = TRUE)) {
       tryCatch({
@@ -533,40 +589,56 @@ confider_status <- function() {
               "GitHub Copilot is ENABLED. It transmits code context to GitHub's servers. Disable in Global Options > Copilot before working with confidential data."
             )
           }
-          # If Copilot is disabled, no warning — that's GREEN.
         }
       }, error = function(e) NULL)
     }
 
     if (!copilot_checked) {
-      # Couldn't verify programmatically (old RStudio, or rstudioapi unavailable)
       warnings <- c(warnings,
         "Could not verify Copilot status automatically. Check Global Options > Copilot if you are unsure."
+      )
+    }
+
+    if (isTRUE(ide$is_workbench)) {
+      warnings <- c(warnings,
+        "Posit Workbench detected. Server-level AI features (e.g. Workbench Assistant) are not visible to R. Check with your server administrator."
       )
     }
   }
 
   if (ide$is_vscode) {
-    # VS Code: we can't inspect extensions from R, but we can check
-    # whether Claude Code or Copilot env markers are present
+    # Extension directory scan — more reliable than env var proxies.
+    found_exts <- .scan_vscode_extensions()
+    if (length(found_exts)) {
+      warnings <- c(warnings, paste0(
+        "AI-related VS Code extensions detected in ~/.vscode/extensions/: ",
+        paste(found_exts, collapse = ", "),
+        ". Verify these are disabled for this workspace."
+      ))
+    }
+
+    # Copilot token env vars (present in some configurations).
     copilot_signs <- nzchar(Sys.getenv("GITHUB_COPILOT_TOKEN", "")) ||
                      nzchar(Sys.getenv("GH_COPILOT_TOKEN", ""))
     if (copilot_signs) {
       warnings <- c(warnings,
-        "GitHub Copilot appears to be active in VS Code. It transmits code context to GitHub's servers."
+        "GitHub Copilot token found in environment. Copilot is active and transmits code context to GitHub's servers."
       )
     }
-    # Claude Code sets specific env vars when running
-    claude_code_signs <- nzchar(Sys.getenv("CLAUDE_CODE", ""))
-    if (claude_code_signs) {
+
+    # Claude Code: check workspace .claude/ directory (more reliable than
+    # CLAUDE_CODE env var, which Claude Code does not actually set).
+    claude_signs <- file.exists(file.path(getwd(), ".claude")) ||
+                    file.exists(file.path(path.expand("~"), ".claude"))
+    if (claude_signs) {
       warnings <- c(warnings,
-        "Claude Code appears to be active. It can read workspace files and run commands, transmitting content to Anthropic's servers."
+        "Claude Code data directory (.claude/) found. Claude Code has been used in this workspace and can read files and transmit content to Anthropic's servers."
       )
     }
-    if (!copilot_signs && !claude_code_signs) {
-      # Can't fully verify from R — give a softer advisory
+
+    if (!length(found_exts) && !copilot_signs && !claude_signs) {
       warnings <- c(warnings,
-        "Cannot fully verify VS Code extensions from R. Check the Extensions sidebar to confirm Copilot and Claude Code are disabled if working with confidential data."
+        "Cannot fully verify VS Code AI extensions from R. Check the Extensions sidebar to confirm Copilot and other AI tools are disabled."
       )
     }
   }
@@ -582,4 +654,144 @@ confider_status <- function() {
     "[??]"
   )
   cat(sprintf("  %s %-25s %s\n", indicator, paste0(label, ":"), value))
+}
+
+# ============================================================
+# audit_processes() — system process table scan
+# ============================================================
+
+#' Scan the system process table for active AI agent processes
+#'
+#' Queries the OS process list for process names associated with known
+#' AI coding tools (GitHub Copilot language server, Codeium, Tabnine,
+#' etc.). Returns AMBER if any are found — a detected process indicates
+#' the tool is running on this machine but does not confirm it is
+#' connected to the current R session.
+#'
+#' On Windows uses \code{tasklist}; on macOS/Linux uses \code{ps aux}.
+#' If the system call fails (restricted environment), returns GREEN with
+#' a note rather than erroring.
+#'
+#' @param verbose Print results? Default \code{TRUE}.
+#' @return Invisibly, a list with \code{found} (matched process name
+#'   fragments) and \code{status}.
+#' @export
+audit_processes <- function(verbose = TRUE) {
+  procs <- .get_process_list()
+
+  found <- character(0)
+  if (length(procs)) {
+    for (pat in .confider_ai_processes) {
+      if (any(grepl(pat, procs, ignore.case = TRUE))) {
+        found <- c(found, pat)
+      }
+    }
+  }
+
+  status <- if (length(found) > 0) "AMBER" else "GREEN"
+  result <- list(found = found, status = status)
+
+  if (verbose) {
+    if (!length(procs)) {
+      cat("\n  Process scan unavailable (system call returned no output).\n\n")
+    } else if (length(found)) {
+      cat("\n  AI-related processes detected on this machine:\n")
+      for (p in found) cat("    ! ", p, "\n")
+      cat("\n  A detected process does not confirm it is connected to this\n")
+      cat("  R session. Verify extension status manually.\n\n")
+    } else {
+      cat("\n  No AI-related processes detected.\n\n")
+    }
+  }
+
+  invisible(result)
+}
+
+.get_process_list <- function() {
+  tryCatch(
+    if (.Platform$OS.type == "windows") {
+      system2("tasklist", stdout = TRUE, stderr = FALSE)
+    } else {
+      system2("ps", args = "aux", stdout = TRUE, stderr = FALSE)
+    },
+    error   = function(e) character(0),
+    warning = function(w) character(0)
+  )
+}
+
+# ============================================================
+# VS Code extension directory scan
+# ============================================================
+
+.scan_vscode_extensions <- function() {
+  ext_dir <- if (.Platform$OS.type == "windows") {
+    file.path(Sys.getenv("USERPROFILE"), ".vscode", "extensions")
+  } else {
+    file.path(path.expand("~"), ".vscode", "extensions")
+  }
+
+  if (!dir.exists(ext_dir)) return(character(0))
+
+  ext_names <- list.dirs(ext_dir, full.names = FALSE, recursive = FALSE)
+
+  found <- character(0)
+  for (pat in .confider_vscode_ext_patterns) {
+    matches <- ext_names[grepl(pat, ext_names, ignore.case = TRUE, perl = TRUE)]
+    found <- c(found, matches)
+  }
+  unique(found)
+}
+
+# ============================================================
+# Positron settings.json helpers
+# ============================================================
+
+.positron_settings_path <- function() {
+  sysname <- Sys.info()[["sysname"]]
+  if (sysname == "Windows") {
+    file.path(Sys.getenv("APPDATA"), "Positron", "User", "settings.json")
+  } else if (sysname == "Darwin") {
+    file.path(path.expand("~"), "Library", "Application Support",
+              "Positron", "User", "settings.json")
+  } else {
+    file.path(path.expand("~"), ".config", "Positron", "User", "settings.json")
+  }
+}
+
+# Returns list(copilot = TRUE/FALSE/NA, assistant = TRUE/FALSE/NA).
+# NA means the key was absent from settings.json or the file could not be read.
+.read_positron_settings <- function() {
+  path <- .positron_settings_path()
+  if (!file.exists(path)) return(list(copilot = NA, assistant = NA))
+
+  lines <- tryCatch(readLines(path, warn = FALSE), error = function(e) character(0))
+  if (!length(lines)) return(list(copilot = NA, assistant = NA))
+
+  text <- paste(lines, collapse = "\n")
+
+  copilot_on  <- grepl('"github\\.copilot\\.enable"\\s*:\\s*true',  text, perl = TRUE)
+  copilot_off <- grepl('"github\\.copilot\\.enable"\\s*:\\s*false', text, perl = TRUE)
+  copilot <- if (copilot_on) TRUE else if (copilot_off) FALSE else NA
+
+  asst_on  <- grepl('"positron\\.assistant\\.enable"\\s*:\\s*true',  text, perl = TRUE,
+                    ignore.case = TRUE)
+  asst_off <- grepl('"positron\\.assistant\\.enable"\\s*:\\s*false', text, perl = TRUE,
+                    ignore.case = TRUE)
+  assistant <- if (asst_on) TRUE else if (asst_off) FALSE else NA
+
+  list(copilot = copilot, assistant = assistant)
+}
+
+# ============================================================
+# R options scan
+# ============================================================
+
+.scan_ai_options <- function() {
+  all_opts <- names(options())
+  found <- character(0)
+  for (pat in .confider_ai_option_patterns) {
+    matches <- all_opts[grepl(pat, all_opts, ignore.case = TRUE, perl = TRUE)]
+    found <- c(found, matches)
+  }
+  unique(found)
 }

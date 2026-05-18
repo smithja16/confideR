@@ -42,26 +42,26 @@ test_that("contains_data_like flags large vectors", {
   expect_false(contains_data_like(rnorm(100)))
 })
 
-test_that("simulate_fisheries_cpue produces correct structure", {
+test_that("simulate_data produces correct structure", {
   confidential_mode_on(verbose = FALSE)
-  dat <- simulate_fisheries_cpue(n_trips = 100, n_vessels = 5, seed = 1)
+  dat <- simulate_data(n_obs = 100, n_groups = 5, seed = 1)
   expect_s3_class(dat, "data.frame")
   expect_equal(nrow(dat), 100)
-  expect_true(all(c("trip_id", "vessel_id", "year", "month", "catch_kg", "effort_hrs", "cpue") %in% names(dat)))
-  expect_true(all(grepl("^Vessel_", dat$vessel_id)))
-  expect_true(all(grepl("^TRIP_", dat$trip_id)))
+  expect_true(all(c("obs_id", "group_id", "year", "month", "response", "effort", "rate") %in% names(dat)))
+  expect_true(all(grepl("^Group_", dat$group_id)))
+  expect_true(all(grepl("^OBS_", dat$obs_id)))
   confidential_mode_off(verbose = FALSE)
 })
 
-test_that("simulate_fisheries_cpue with optional columns", {
+test_that("simulate_data with optional columns", {
   confidential_mode_on(verbose = FALSE)
-  dat <- simulate_fisheries_cpue(
-    n_trips = 50, n_vessels = 3,
-    include_observer = TRUE, include_bycatch = TRUE, include_spatial = TRUE,
+  dat <- simulate_data(
+    n_obs = 50, n_groups = 3,
+    include_observer = TRUE, include_secondary = TRUE, include_spatial = TRUE,
     seed = 1
   )
   expect_true("observer_id" %in% names(dat))
-  expect_true("bycatch_event" %in% names(dat))
+  expect_true("secondary_event" %in% names(dat))
   expect_true("latitude" %in% names(dat))
   expect_true("longitude" %in% names(dat))
   confidential_mode_off(verbose = FALSE)
@@ -69,7 +69,7 @@ test_that("simulate_fisheries_cpue with optional columns", {
 
 test_that("fingerprint produces safe output", {
   confidential_mode_on(verbose = FALSE)
-  dat <- simulate_fisheries_cpue(n_trips = 100, n_vessels = 5, seed = 1)
+  dat <- simulate_data(n_obs = 100, n_groups = 5, seed = 1)
   fp <- fingerprint(dat, mode = "summary", obfuscation = "partial")
   expect_s3_class(fp, "confider_fingerprint")
   expect_false(contains_data_like(fp))
@@ -79,15 +79,15 @@ test_that("fingerprint produces safe output", {
 
 test_that("fingerprint obfuscation levels work", {
   confidential_mode_on(verbose = FALSE)
-  dat <- simulate_fisheries_cpue(n_trips = 50, n_vessels = 3, seed = 1)
+  dat <- simulate_data(n_obs = 50, n_groups = 3, seed = 1)
 
   fp_none    <- fingerprint(dat, obfuscation = "none")
   fp_partial <- fingerprint(dat, obfuscation = "partial")
   fp_full    <- fingerprint(dat, obfuscation = "full")
 
-  # None: original names
-  expect_true("vessel_id" %in% fp_none$columns$alias)
-  # Partial: vessel_id should be aliased
+  # None: original names kept
+  expect_true("group_id" %in% fp_none$columns$alias)
+  # Partial: group_id should be aliased (it's a high-cardinality identifier)
   expect_true(any(grepl("^ID_", fp_partial$columns$alias)))
   # Full: all aliased
   expect_true(all(grepl("^Var", fp_full$columns$alias)))
@@ -97,7 +97,7 @@ test_that("fingerprint obfuscation levels work", {
 
 test_that("simulate_from_fingerprint matches structure", {
   confidential_mode_on(verbose = FALSE)
-  dat <- simulate_fisheries_cpue(n_trips = 100, n_vessels = 5, seed = 1)
+  dat <- simulate_data(n_obs = 100, n_groups = 5, seed = 1)
   fp <- fingerprint(dat, mode = "summary", obfuscation = "none")
   sim <- simulate_from_fingerprint(fp, n = 50, seed = 99)
   expect_equal(ncol(sim), fp$meta$n_cols)
@@ -109,11 +109,18 @@ test_that("audit functions run without error", {
   expect_no_error(audit_ide(verbose = FALSE))
   expect_no_error(audit_packages(verbose = FALSE))
   expect_no_error(audit_env_keys(verbose = FALSE))
+  expect_no_error(audit_processes(verbose = FALSE))
 })
 
 test_that("audit_env_keys returns expected structure", {
   r <- audit_env_keys(verbose = FALSE)
   expect_true(all(c("found_live", "found_on_disk", "status") %in% names(r)))
+})
+
+test_that("audit_processes returns expected structure", {
+  r <- audit_processes(verbose = FALSE)
+  expect_true(all(c("found", "status") %in% names(r)))
+  expect_true(r$status %in% c("GREEN", "AMBER"))
 })
 
 test_that("scan_script detects common patterns", {
@@ -132,7 +139,7 @@ test_that("scan_script detects common patterns", {
   expect_equal(r$status, "AMBER")
 
   patterns_found <- unique(vapply(r$findings, function(f) f$pattern, character(1)))
-  expect_true("fisheries_vessel_pattern" %in% patterns_found)
+  expect_true("vessel_identifier" %in% patterns_found)
   expect_true("absolute_user_path" %in% patterns_found)
   expect_true("email_address" %in% patterns_found)
 
@@ -143,22 +150,18 @@ test_that("scan_script returns GREEN on clean scripts", {
   tmp <- tempfile(fileext = ".R")
   writeLines(c(
     "library(dplyr)",
-    "dat <- read.csv('./data/cpue.csv')",
-    "model <- lm(log_cpue ~ year + vessel_id, data = dat)",
+    "dat <- read.csv('./data/survey.csv')",
+    "model <- lm(log_rate ~ year + group_id, data = dat)",
     "summary(model)"
   ), tmp)
 
   r <- scan_script(tmp, verbose = FALSE)
-  # 'summary(model)' will trigger print_data_object and read.csv gets flagged
-  # as save_to_disk is for writes, not reads — so this scan should still
-  # detect at least the print/summary call
-  unlink(tmp)
-  # Not strictly GREEN due to summary() pattern; verify no fisheries-specific
-  # patterns fire on this clean code
   patterns_found <- vapply(r$findings, function(f) f$pattern, character(1))
-  expect_false("fisheries_vessel_pattern" %in% patterns_found)
+  expect_false("vessel_identifier" %in% patterns_found)
   expect_false("email_address" %in% patterns_found)
   expect_false("absolute_user_path" %in% patterns_found)
+
+  unlink(tmp)
 })
 
 test_that("check_notebook_outputs handles missing file gracefully", {

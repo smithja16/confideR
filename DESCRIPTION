@@ -4,7 +4,7 @@ Version: 0.1.0
 Authors@R:
     person("James", "Smith", role = c("aut", "cre"),
            email = "james.a.smith@dpi.nsw.gov.au",
-           comment = c(ORCID = "0000-0000-0000-0000"))
+           comment = c(ORCID = "0000-0002-0496-3221"))
 Description: Provides tools to protect confidential research data during
     AI-assisted code development in ecological, environmental, fisheries,
     agricultural, and social science settings. Enforces a 'confidential mode'

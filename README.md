@@ -8,23 +8,19 @@
 
 It provides four core capabilities:
 
-1. **Confidential mode** — Activate session-level protection that clears AI API keys, unloads AI packages, and blocks them from being loaded.
+1. **Confidential mode**: Activate session-level protection that clears AI API keys, unloads AI packages, and blocks them from being loaded.
 
-2. **Session auditing** — Detect your IDE (RStudio, Positron, VS Code), scan `.Rprofile` for AI auto-connections, check for AI API keys, scan the VS Code extension directory, and query the system process table for active AI agent processes.
+2. **Session auditing**: Detect your IDE (RStudio, Positron, VS Code), scan `.Rprofile` for AI auto-connections, check for AI API keys, scan the VS Code extension directory, and query the system process table for active AI agent processes.
 
-3. **Data fingerprinting** — Extract a privacy-safe structural summary of your confidential dataset (column names, types, distributions) without exposing any raw values. Supports three obfuscation levels. Auto-detects confidential columns across fisheries, ecological, environmental, agricultural, and social science naming conventions.
+3. **Data fingerprinting**: Extract a privacy-safe structural summary of your confidential dataset (column names, types, distributions) without exposing any raw values. Supports three obfuscation levels. Auto-detects confidential columns across fisheries, ecological, environmental, agricultural, and social science naming conventions.
 
-4. **Data simulation** — Generate realistic simulated survey datasets with group effects, strata effects, seasonal patterns, observer coverage, and secondary observations — safe to use with any AI tool. Supports the *develop on simulated data, run on real data* workflow.
+4. **Data simulation**: Generate realistic simulated survey datasets with group effects, strata effects, seasonal patterns, observer coverage, and secondary observations — safe to use with any AI tool. Supports the *develop on simulated data, run on real data* workflow.
 
 ## Installation
 
 ```r
-# From GitHub (when published)
-# remotes::install_github("[user]/confideR")
-
-# For now, source from local directory
-devtools::load_all("path/to/confideR")
-```
+# From GitHub
+remotes::install_github("smithja16/confideR")
 
 ## Quick start
 
@@ -42,15 +38,14 @@ sim_data <- simulate_data(
   n_obs    = 2000,
   n_groups = 30,
   include_observer  = TRUE,
-  include_secondary = TRUE
-)
+  include_secondary = TRUE )
 
 # 4. Fingerprint your REAL data (structural summary only)
 # fp <- fingerprint(real_data, mode = "summary", obfuscation = "partial")
 
 # 5. Write simulated data for your AI workspace
 write.csv(sim_data, "data/simulated_data.csv", row.names = FALSE)
-# This file is safe to use with any AI tool.
+# This file is safe to use with an AI tool
 
 # 6. Format fingerprint for copy-pasting into a browser AI chat
 # format_for_prompt(fp)

@@ -22,9 +22,7 @@ It provides four core capabilities:
 # From GitHub
 remotes::install_github("smithja16/confideR")
 
-## Quick start
-
-```r
+# Quick start
 library(confideR)
 
 # 1. Audit your session FIRST

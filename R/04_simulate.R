@@ -168,11 +168,11 @@ simulate_data <- function(
   # --- Assemble core data frame ---
   dat <- data.frame(
     obs_id      = obs_id,
-    group_id    = group_id,
+    group_id    = as.factor(group_id),
     year        = as.integer(year),
     month       = as.integer(month),
-    stratum     = stratum,
-    category    = category,
+    stratum     = as.factor(stratum),
+    category    = as.factor(category),
     effort      = effort,
     response    = response,
     covariate_1 = covariate_1,

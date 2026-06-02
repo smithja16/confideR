@@ -50,15 +50,16 @@ format_for_prompt(fp_sim)
 # sim_real <- simulate_from_fingerprint(fp_real)
 
 # 7. Write simulated data for your AI workspace
-write.csv(sim_real, "data/simulated_data.csv", row.names = FALSE)
+# write.csv(sim_real, "data/simulated_data.csv", row.names = FALSE)
 # This file is safe to use with an AI tool (after checking)
 
 # 8. Check if object contains raw data
-# M <- gam(log(response) ~ stratum + s(month, bs="cc") + s(year) +
-#            s(covariate_1) + s(group_id, bs="re"), data = sim_data)
-# contains_data_like(M)  #TRUE
-# contains_data_like(sim_data)  #TRUE
-# contains_data_like(fp_sim)  #FALSE
+library(mgcv)
+M <- gam(log(response) ~ stratum + s(month, bs="cc") + s(year) +
+           s(covariate_1) + s(group_id, bs="re"), data = sim_data)
+contains_data_like(M)  #TRUE
+contains_data_like(sim_data)  #TRUE
+contains_data_like(fp_sim)  #FALSE
 
 # 9. When done, turn off confidential mode
 confidential_mode_off()

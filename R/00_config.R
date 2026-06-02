@@ -5,7 +5,7 @@
 # registries, and IDE detection patterns. Extend these
 # vectors to match your institutional environment.
 #
-# Last reviewed: 2026-04
+# Last reviewed: 2026-06
 ############################################################
  
 # -------------------------------------------------------------------
@@ -46,12 +46,15 @@
   "side",            # Full AI assistant in RStudio sidebar; broad file/env access
   "deputy",          # AI agent framework
   "mcptools",        # Model Context Protocol tools for R
- 
+  "btw",             # Posit toolkit; btw() collects session/env context for AI transmission
+  "corteza",         # CLI-first R agent; executes R code and shell in same session
+
   # ---- General LLM API wrappers ----
   "openai",          # OpenAI API wrapper
   "chatgpt",         # ChatGPT interface
   "theOpenAIR",      # Alternative OpenAI wrapper
- 
+  "gptRBridge",      # RStudio GPT addin; auto-captures console output and errors for AI
+
   # ---- RAG / embedding packages ----
   "ragnar",          # R RAG framework (uses ellmer under the hood)
   "text",            # NLP package; can send text to HuggingFace models
@@ -77,6 +80,8 @@
   "VERTEX_API_KEY",          # Google Vertex AI (distinct from GOOGLE_API_KEY)
   "AZURE_OPENAI_KEY",
   "AZURE_OPENAI_API_KEY",
+  "MOONSHOT_API_KEY",        # Moonshot AI / Kimi models
+  "TAVILY_API_KEY",          # Tavily web search API (used by corteza agent for web access)
   "XAI_API_KEY",             # xAI Grok
  
   # ---- Model hosting / hub platforms ----
@@ -139,6 +144,8 @@
   "library\\(rollama\\)",
   "library\\(ollamar\\)",
   "library\\(tidyllm\\)",
+  "library\\(btw\\)",
+  "library\\(corteza\\)",
   "require\\(ellmer\\)",
   "require\\(chattr\\)",
  
@@ -149,7 +156,9 @@
   "rollama::",
   "ollamar::",
   "tidyllm::",
- 
+  "btw::",
+  "corteza::",
+
   # ---- IDE AI feature options ----
   "gptstudio",  #broad catch for loading or comments
   "copilot",  #catching comments about copilot only
@@ -230,6 +239,7 @@
 
   # ---- Standalone agent CLIs ----
   "claude-code",             # Claude Code CLI
+  "corteza",                 # corteza R agent CLI
   "aider",                   # Aider AI pair programmer
   "open-interpreter"         # Open Interpreter
 )

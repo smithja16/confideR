@@ -37,18 +37,20 @@ sim_data <- simulate_data(
   n_groups = 30,
   include_observer  = TRUE,
   include_secondary = TRUE )
-M <- gam(log(response) ~ stratum + s(month, bs="cc") + s(year) +
-           s(covariate_1) + s(group_id, bs="re"), data = sim_data)
+# M <- gam(log(response) ~ stratum + s(month, bs="cc") + s(year) +
+#            s(covariate_1) + s(group_id, bs="re"), data = sim_data)
 
 # 4. Fingerprint your REAL data (structural summary only)
 # fp <- fingerprint(real_data, mode = "summary", obfuscation = "partial")
+fp <- fingerprint(sim_data, mode = "summary", obfuscation = "partial")
 
-# 5. Write simulated data for your AI workspace
+# 5. Format fingerprint for copy-pasting into a browser AI chat
+format_for_prompt(fp)
+# This summary is safe to paste into an AI tool (after checking)
+
+# 6. Write simulated data for your AI workspace
 write.csv(sim_data, "data/simulated_data.csv", row.names = FALSE)
 # This file is safe to use with an AI tool
-
-# 6. Format fingerprint for copy-pasting into a browser AI chat
-# format_for_prompt(fp)
 
 # 7. When done, turn off confidential mode
 confidential_mode_off()

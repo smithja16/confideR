@@ -66,7 +66,7 @@ confidential_mode_off()
   + develop analysis code        + run final analysis
            |                              ^
            |--- transfer code only -------|
-           |   (Git, USB, file transfer)  |
+           |  (Git, paste, file transfer) |
            v                              |
   Code tested on fake data       Code runs on real data
 ```

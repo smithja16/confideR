@@ -30,6 +30,7 @@ Suggests:
     testthat (>= 3.0.0),
     knitr,
     rmarkdown,
-    rstudioapi
+    rstudioapi,
+    ps
 Config/testthat/edition: 3
 VignetteBuilder: knitr

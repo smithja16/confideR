@@ -115,15 +115,24 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
     )
 
     # API keys
-    all_keys <- c(
-      key_info$found_live,
-      vapply(key_info$found_on_disk, function(f) f$key, character(1))
-    )
-    .print_status_line("AI API keys",
-      if (length(all_keys)) paste(unique(all_keys), collapse = ", ")
-      else "(none)",
-      key_info$status
-    )
+    live_keys <- key_info$found_live
+    disk_keys <- unique(vapply(key_info$found_on_disk, function(f) f$key, character(1)))
+    if (length(live_keys)) {
+      .print_status_line("AI API keys", paste(unique(live_keys), collapse = ", "), key_info$status)
+      cat("    [i] Key(s) LIVE in environment now.\n")
+      if (length(setdiff(disk_keys, live_keys))) {
+        cat("        Also in .Renviron:", paste(setdiff(disk_keys, live_keys), collapse = ", "), "\n")
+      }
+    } else if (length(disk_keys)) {
+      .print_status_line("AI API keys", paste(disk_keys, collapse = ", "), key_info$status)
+      if (isTRUE(key_info$confidential_mode)) {
+        cat("    [i] Cleared from this session; still in .Renviron (reloads next session).\n")
+      } else {
+        cat("    [i] In .Renviron only; not yet loaded into this session.\n")
+      }
+    } else {
+      .print_status_line("AI API keys", "(none)", key_info$status)
+    }
 
     # .Rprofile
     if (!is.null(rprof_info)) {
@@ -387,6 +396,8 @@ audit_packages <- function(verbose = TRUE) {
 #' @export
 audit_env_keys <- function(verbose = TRUE) {
 
+  conf_mode <- is_confidential_mode()
+
   # --- Check live environment ---
   found_live <- character(0)
   for (key in .confider_api_keys) {
@@ -425,27 +436,60 @@ audit_env_keys <- function(verbose = TRUE) {
     }
   }
 
-  status <- if (length(found_live) > 0 || length(found_on_disk) > 0) "RED" else "GREEN"
+  # Keys that are on disk but NOT currently live. When confidential mode
+  # is active, live keys have been cleared, so an on-disk key that is not
+  # live has been successfully neutralised for this session (though it will
+  # reload next session unless removed from .Renviron).
+  on_disk_keys <- unique(vapply(found_on_disk, function(f) f$key, character(1)))
+  on_disk_not_live <- setdiff(on_disk_keys, found_live)
+
+  # --- Status logic ---
+  # RED   : a key is live in the environment right now (active exposure)
+  # AMBER : no live keys, but keys exist on disk (will reload next session,
+  #         or — in confidential mode — have been cleared but persist on disk)
+  # GREEN : no keys anywhere
+  status <- if (length(found_live) > 0) {
+    "RED"
+  } else if (length(found_on_disk) > 0) {
+    "AMBER"
+  } else {
+    "GREEN"
+  }
 
   result <- list(
-    found_live    = found_live,
-    found_on_disk = found_on_disk,
-    status        = status
+    found_live       = found_live,
+    found_on_disk    = found_on_disk,
+    on_disk_not_live = on_disk_not_live,
+    confidential_mode = conf_mode,
+    status           = status
   )
 
   if (verbose) {
     if (length(found_live)) {
-      cat("\n  AI API keys in live environment:\n")
+      cat("\n  AI API keys LIVE in environment (active exposure):\n")
       for (k in found_live) cat("    ! ", k, "\n")
-      cat("  These will be cleared by confidential_mode_on().\n")
+      if (conf_mode) {
+        cat("  NOTE: confidential mode is active but these keys are still live.\n")
+        cat("  They may have been set after confidential_mode_on() was called.\n")
+      } else {
+        cat("  These will be cleared by confidential_mode_on().\n")
+      }
     }
     if (length(found_on_disk)) {
       cat("\n  AI API keys in .Renviron files (persist across sessions):\n")
       for (f in found_on_disk) {
-        cat(sprintf("    ! %s [%s:%d]\n", f$key, basename(f$file), f$line_number))
+        live_flag <- if (f$key %in% found_live) " [currently LIVE]"
+                     else if (conf_mode) " [cleared from this session, still on disk]"
+                     else " [will load next session]"
+        cat(sprintf("    ! %s [%s:%d]%s\n", f$key, basename(f$file), f$line_number, live_flag))
       }
-      cat("  These files will reload keys on next R session.\n")
-      cat("  Comment them out or move to a non-loaded location for stronger protection.\n")
+      if (conf_mode && !length(found_live)) {
+        cat("  These keys have been cleared from the current session by\n")
+        cat("  confidential mode, but remain in .Renviron and will reload\n")
+        cat("  on next R session. Comment them out for permanent removal.\n")
+      } else {
+        cat("  Comment them out or move to a non-loaded location for stronger protection.\n")
+      }
     }
     if (length(found_live) == 0 && length(found_on_disk) == 0) {
       cat("\n  No AI API keys found in environment or .Renviron files.\n")
@@ -664,13 +708,22 @@ confider_status <- function() {
 #'
 #' Queries the OS process list for process names associated with known
 #' AI coding tools (GitHub Copilot language server, Codeium, Tabnine,
-#' etc.). Returns AMBER if any are found — a detected process indicates
+#' etc.) and local model servers (Ollama, LM Studio, llama.cpp, and
+#' others). Returns AMBER if any are found — a detected process indicates
 #' the tool is running on this machine but does not confirm it is
 #' connected to the current R session.
 #'
-#' On Windows uses \code{tasklist}; on macOS/Linux uses \code{ps aux}.
-#' If the system call fails (restricted environment), returns GREEN with
-#' a note rather than erroring.
+#' Local model servers are included because they accept connections over
+#' localhost HTTP with no R package loaded and no API key set, making them
+#' otherwise invisible to confideR's other checks.
+#'
+#' If the \code{ps} package is installed, it is used for structured,
+#' cross-platform process inspection including full command lines. If not,
+#' the function falls back to \code{system2()} with \code{tasklist}
+#' (Windows) or \code{ps aux} (macOS/Linux). Installing \code{ps} is
+#' recommended for more reliable detection. If the process scan fails
+#' (e.g. a restricted environment), the function returns GREEN with a
+#' note rather than erroring.
 #'
 #' @param verbose Print results? Default \code{TRUE}.
 #' @return Invisibly, a list with \code{found} (matched process name
@@ -682,7 +735,7 @@ audit_processes <- function(verbose = TRUE) {
   found <- character(0)
   if (length(procs)) {
     for (pat in .confider_ai_processes) {
-      if (any(grepl(pat, procs, ignore.case = TRUE))) {
+      if (any(grepl(pat, procs, ignore.case = TRUE, perl = TRUE))) {
         found <- c(found, pat)
       }
     }
@@ -707,12 +760,53 @@ audit_processes <- function(verbose = TRUE) {
   invisible(result)
 }
 
+# Returns a character vector of running processes, one element per process,
+# combining the process name and (where available) the full command line.
+#
+# Uses the 'ps' package when installed: ps::ps() returns a structured,
+# cross-platform data frame, and ps::ps_cmdline() exposes the full command
+# line — important because tools like Ollama appear as "ollama serve" and
+# Node-based agents appear as a generic "node" with the tool in the args.
+#
+# Falls back to system2() with tasklist (Windows) or ps aux (Unix) when the
+# 'ps' package is not installed. The fallback is less reliable: output
+# formats differ by platform and long command names may be truncated.
 .get_process_list <- function() {
+  # Preferred path: the 'ps' package (structured, cross-platform).
+  if (requireNamespace("ps", quietly = TRUE)) {
+    out <- tryCatch({
+      pl <- ps::ps()
+      if (!nrow(pl)) return(character(0))
+      vapply(seq_len(nrow(pl)), function(i) {
+        name <- pl$name[i]
+        # Append the full command line where accessible; some processes
+        # (e.g. those owned by other users) will deny access — ignore those.
+        cmd <- tryCatch(
+          paste(ps::ps_cmdline(pl$ps_handle[[i]]), collapse = " "),
+          error = function(e) ""
+        )
+        trimws(paste(name, cmd))
+      }, character(1))
+    }, error = function(e) NULL)
+
+    if (!is.null(out)) return(out)
+    # If ps failed at runtime, fall through to the system2 fallback.
+  }
+
+  .get_process_list_fallback()
+}
+
+# Fallback process list using base R system2(). Less reliable than 'ps':
+# - tasklist and 'ps aux' produce different output formats
+# - 'ps aux' may truncate long command names
+# - 'ps' may be absent or localised on restricted systems
+.get_process_list_fallback <- function() {
   tryCatch(
     if (.Platform$OS.type == "windows") {
       system2("tasklist", stdout = TRUE, stderr = FALSE)
     } else {
-      system2("ps", args = "aux", stdout = TRUE, stderr = FALSE)
+      # -ww prevents truncation of long command lines where supported
+      system2("ps", args = c("aux", "-ww"), stdout = TRUE, stderr = FALSE)
     },
     error   = function(e) character(0),
     warning = function(w) character(0)
@@ -788,6 +882,12 @@ audit_processes <- function(verbose = TRUE) {
 
 .scan_ai_options <- function() {
   all_opts <- names(options())
+
+  # Exclude confideR's own options (e.g. confider.backup.openai_api_key),
+  # which would otherwise match AI patterns and cause the package to
+  # detect itself as an AI connection.
+  all_opts <- all_opts[!grepl("^confider\\.", all_opts, ignore.case = TRUE)]
+
   found <- character(0)
   for (pat in .confider_ai_option_patterns) {
     matches <- all_opts[grepl(pat, all_opts, ignore.case = TRUE, perl = TRUE)]

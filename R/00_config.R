@@ -195,19 +195,43 @@
 
 # -------------------------------------------------------------------
 # Process name fragments for system process table scanning.
-# Matched case-insensitively against full ps/tasklist output.
+# Matched case-insensitively against process names AND full command
+# lines (when the 'ps' package is available, see .get_process_list()).
 # Returns AMBER — presence on machine does not confirm the process
 # is connected to the current R session.
+#
+# Local AI servers (e.g. Ollama) are included because they accept
+# connections over localhost HTTP with no R package loaded and no
+# API key set, so they are otherwise invisible to confideR.
 # -------------------------------------------------------------------
 .confider_ai_processes <- c(
+
+  # ---- Local model servers ----
+  # These run as background services and accept HTTP connections on
+  # localhost. An R session can reach them with nothing loaded.
+  "ollama",                  # Ollama server (often "ollama serve" / "ollama runner")
+  "llama\\.cpp",             # llama.cpp server
+  "llama-server",            # llama.cpp server binary
+  "lmstudio",                # LM Studio
+  "lm-studio",               # LM Studio (alternative name)
+  "localai",                 # LocalAI server
+  "text-generation",         # text-generation-webui / -inference
+
+  # ---- IDE AI agents / language servers ----
   "copilot-agent",           # GitHub Copilot language server
   "copilot_language_server", # Alternative Copilot process name
   "codeium-agent",           # Codeium extension agent
-  "tabnine-agent",           # Tabnine agent
+  "codeium_language_server", # Codeium language server
+  "tabnine",                 # Tabnine agent (matches TabNine, tabnine-agent)
   "continue-server",         # Continue extension server
   "cody-agent",              # Sourcegraph Cody agent
-  "amazon-q-agent",          # Amazon Q agent
-  "cursor-agent"             # Cursor agent
+  "amazon-q",                # Amazon Q agent
+  "cursor-agent",            # Cursor agent
+
+  # ---- Standalone agent CLIs ----
+  "claude-code",             # Claude Code CLI
+  "aider",                   # Aider AI pair programmer
+  "open-interpreter"         # Open Interpreter
 )
 
 # -------------------------------------------------------------------

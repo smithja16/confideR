@@ -445,12 +445,15 @@ audit_env_keys <- function(verbose = TRUE) {
 
   # --- Status logic ---
   # RED   : a key is live in the environment right now (active exposure)
-  # AMBER : no live keys, but keys exist on disk (will reload next session,
-  #         or — in confidential mode — have been cleared but persist on disk)
-  # GREEN : no keys anywhere
+  # AMBER : no live keys, but keys exist on disk AND confidential mode is
+  #         OFF — a latent risk the user should be aware of (will load into
+  #         a future session, or could be loaded this session)
+  # GREEN : no keys anywhere, OR the only keys are on-disk and confidential
+  #         mode is ON (already cleared from this session; the on-disk copy
+  #         is a next-session concern, not a current exposure)
   status <- if (length(found_live) > 0) {
     "RED"
-  } else if (length(found_on_disk) > 0) {
+  } else if (length(found_on_disk) > 0 && !conf_mode) {
     "AMBER"
   } else {
     "GREEN"

@@ -108,7 +108,7 @@ simulate_data <- function(
     group_effect_sd    = 0.4,
     strata_effect_sd   = 0.3,
     seasonal_amplitude = 0.3,
-    seed               = 42
+    seed               = 117
 ) {
 
   set.seed(seed)
@@ -240,7 +240,7 @@ simulate_data <- function(
 #' @param seed Random seed. Default 42.
 #' @return A data frame with the same structure as the fingerprinted data.
 #' @export
-simulate_from_fingerprint <- function(fp, n = NULL, seed = 42) {
+simulate_from_fingerprint <- function(fp, n = NULL, seed = 117) {
   stopifnot(is_fingerprint(fp))
   if (is.null(fp$summary)) {
     stop("[confideR] Fingerprint must have mode='summary'. Re-run fingerprint() with mode='summary'.",

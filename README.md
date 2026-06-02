@@ -37,22 +37,30 @@ sim_data <- simulate_data(
   n_groups = 30,
   include_observer  = TRUE,
   include_secondary = TRUE )
-# M <- gam(log(response) ~ stratum + s(month, bs="cc") + s(year) +
-#            s(covariate_1) + s(group_id, bs="re"), data = sim_data)
 
 # 4. Fingerprint your REAL data (structural summary only)
-# fp <- fingerprint(real_data, mode = "summary", obfuscation = "partial")
-fp <- fingerprint(sim_data, mode = "summary", obfuscation = "partial")
+# fp_real <- fingerprint(real_data, mode = "summary", obfuscation = "partial")
+fp_sim <- fingerprint(sim_data, mode = "summary", obfuscation = "partial")
 
 # 5. Format fingerprint for copy-pasting into a browser AI chat
-format_for_prompt(fp)
+format_for_prompt(fp_sim)
 # This summary is safe to paste into an AI tool (after checking)
 
-# 6. Write simulated data for your AI workspace
-write.csv(sim_data, "data/simulated_data.csv", row.names = FALSE)
-# This file is safe to use with an AI tool
+# 6. Simulate from real fingerprint for enhanced testing
+# sim_real <- simulate_from_fingerprint(fp_real)
 
-# 7. When done, turn off confidential mode
+# 7. Write simulated data for your AI workspace
+write.csv(sim_real, "data/simulated_data.csv", row.names = FALSE)
+# This file is safe to use with an AI tool (after checking)
+
+# 8. Check if object contains raw data
+# M <- gam(log(response) ~ stratum + s(month, bs="cc") + s(year) +
+#            s(covariate_1) + s(group_id, bs="re"), data = sim_data)
+# contains_data_like(M)  #TRUE
+# contains_data_like(sim_data)  #TRUE
+# contains_data_like(fp_sim)  #FALSE
+
+# 9. When done, turn off confidential mode
 confidential_mode_off()
 ```
 

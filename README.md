@@ -38,7 +38,7 @@ sim_data <- simulate_data(
   include_observer  = TRUE,
   include_secondary = TRUE )
 M <- gam(log(response) ~ stratum + s(month, bs="cc") + s(year) +
-           s(covariate_1) + (group_id, bs="re"), data = sim_data)
+           s(covariate_1) + s(group_id, bs="re"), data = sim_data)
 
 # 4. Fingerprint your REAL data (structural summary only)
 # fp <- fingerprint(real_data, mode = "summary", obfuscation = "partial")

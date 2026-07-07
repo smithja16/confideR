@@ -38,16 +38,19 @@ sim_data <- simulate_data(
   include_observer  = TRUE,
   include_secondary = TRUE )
 
-# 4. Fingerprint your REAL data (structural summary only)
-# fp_real <- fingerprint(real_data, mode = "summary", obfuscation = "partial")
+# 4. Fingerprint a dataset - structural summary only, no raw values.
+#    In real use, point this at YOUR confidential data instead:
+#    fp_real <- fingerprint(real_data, mode = "summary", obfuscation = "partial")
 fp_sim <- fingerprint(sim_data, mode = "summary", obfuscation = "partial")
 
 # 5. Format fingerprint for copy-pasting into a browser AI chat
 format_for_prompt(fp_sim)
 # This summary is safe to paste into an AI tool (after checking)
 
-# 6. Simulate from real fingerprint for enhanced testing
-# sim_real <- simulate_from_fingerprint(fp_real)
+# 6. The "fingerprint -> simulate" round trip: turn a fingerprint back into a
+#    synthetic dataset that mirrors its structure and distributions.
+#    (Runnable here on fp_sim; in real use you'd pass fp_real.)
+sim_real <- simulate_from_fingerprint(fp_sim)
 
 # 7. Write simulated data for your AI workspace
 # write.csv(sim_real, "data/simulated_data.csv", row.names = FALSE)
@@ -103,7 +106,7 @@ confidential_mode_off()
 
 ### Simulation
 - `simulate_data()` — generate survey data from parameters
-- `simulate_from_fingerprint()` — generate data from a fingerprint
+- `simulate_from_fingerprint()` — generate synthetic data from a `fingerprint()` (the "fingerprint → simulate" round trip)
 
 ### Leak detection
 - `contains_data_like()` — check if object contains raw data

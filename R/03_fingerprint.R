@@ -26,6 +26,9 @@
 #' @param anonymise List of thresholds: \code{numeric_digits},
 #'   \code{min_level_size}, \code{max_levels_shown}, \code{date_precision}.
 #' @return An object of class \code{confider_fingerprint}.
+#' @seealso [format_for_prompt()] to render the fingerprint as text for an
+#'   AI chat, and [simulate_from_fingerprint()] to turn it back into a
+#'   synthetic dataset (the "fingerprint -> simulate" round trip).
 #' @export
 fingerprint <- function(
     data,

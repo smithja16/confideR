@@ -56,7 +56,7 @@
 #' @param effort_sdlog SD of the log-effort distribution.
 #'   Default 0.5.
 #' @param zero_inflation Proportion of zero responses. Default 0
-#'   (none). Set to e.g. 0.15 for 15\% zeros.
+#'   (none). Set to e.g. 0.15 for 15 percent zeros.
 #' @param include_observer Logical. Add observer coverage columns
 #'   (\code{observed}, \code{observer_id})? Default \code{FALSE}.
 #' @param include_secondary Logical. Add secondary observation
@@ -79,6 +79,16 @@
 #' @param seed Random seed. Default 42.
 #' @return A data frame with columns appropriate for rate
 #'   standardisation or mixed-effects modelling.
+#' @note The relationships in the output (group, strata, seasonal, and
+#'   effort-driven effects) are those built in by the parameters, not learned
+#'   from any real dataset — which is what makes the result safe to share.
+#'   To reproduce the joint structure of a specific confidential dataset,
+#'   use the \pkg{synthpop} package on your secure machine rather than trying
+#'   to encode correlations in a fingerprint.
+#' @seealso [simulate_from_fingerprint()] to instead generate synthetic
+#'   data that mirrors a real dataset's structure (the
+#'   "fingerprint -> simulate" round trip), and [fingerprint()] to create
+#'   that structural summary.
 #' @export
 #' @examples
 #' \dontrun{
@@ -234,11 +244,30 @@ simulate_data <- function(
 #' types, and approximate distributional properties. Useful for
 #' generating AI-safe data that mirrors your real dataset.
 #'
+#' This is the second half of the "fingerprint -> simulate" round trip:
+#' \code{fingerprint(real_data)} produces a privacy-safe summary, and
+#' \code{simulate_from_fingerprint()} turns that summary back into a
+#' synthetic dataset you can safely develop against with AI tools.
+#'
 #' @param fp A \code{confider_fingerprint} object (must have
 #'   \code{mode = "summary"}).
 #' @param n Number of rows. Default uses the original dataset's row count.
 #' @param seed Random seed. Default 42.
 #' @return A data frame with the same structure as the fingerprinted data.
+#' @note Columns are generated independently from their marginal summaries;
+#'   the output does not reproduce correlations or other joint relationships
+#'   between variables. This is deliberate — a fingerprint is a non-disclosive
+#'   structural summary, and encoding joint structure would push real
+#'   information into an object meant to be shareable. If realistic
+#'   relationships matter (e.g. to check that an analysis recovers known
+#'   effects), use [simulate_data()], which builds in group, strata, seasonal,
+#'   and effort-driven structure by design. To reproduce a specific real
+#'   dataset's own joint structure, generate synthetic data with the
+#'   \pkg{synthpop} package on your secure machine (where the real data lives)
+#'   and transfer the synthetic file — keeping joint information out of the
+#'   fingerprint.
+#' @seealso [fingerprint()] to create the summary this consumes, and
+#'   [simulate_data()] to generate data from parameters instead.
 #' @export
 simulate_from_fingerprint <- function(fp, n = NULL, seed = 117) {
   stopifnot(is_fingerprint(fp))

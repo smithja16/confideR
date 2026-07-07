@@ -67,6 +67,9 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
     cat("   confideR: Session Audit Report\n")
     cat("========================================\n\n")
 
+    # Status key — explains the [OK]/[!!]/[XX] indicators used below
+    cat("  Status key:  [OK] no risk   [!!] check advised   [XX] action needed\n\n")
+
     # Confidential mode
     if (is_confidential_mode()) {
       cat("  Confidential mode:  ACTIVE\n\n")
@@ -115,20 +118,31 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
     )
 
     # API keys
-    live_keys <- key_info$found_live
-    disk_keys <- unique(vapply(key_info$found_on_disk, function(f) f$key, character(1)))
+    live_keys   <- key_info$found_live
+    disk_keys   <- unique(vapply(key_info$found_on_disk, function(f) f$key, character(1)))
+    dotenv_keys <- unique(vapply(key_info$found_dotenv,  function(f) f$key, character(1)))
+    all_disk    <- unique(c(disk_keys, dotenv_keys))
     if (length(live_keys)) {
       .print_status_line("AI API keys", paste(unique(live_keys), collapse = ", "), key_info$status)
       cat("    [i] Key(s) LIVE in environment now.\n")
       if (length(setdiff(disk_keys, live_keys))) {
         cat("        Also in .Renviron:", paste(setdiff(disk_keys, live_keys), collapse = ", "), "\n")
       }
-    } else if (length(disk_keys)) {
-      .print_status_line("AI API keys", paste(disk_keys, collapse = ", "), key_info$status)
-      if (isTRUE(key_info$confidential_mode)) {
-        cat("    [i] Cleared from this session; still in .Renviron (reloads next session).\n")
-      } else {
-        cat("    [i] In .Renviron only; not yet loaded into this session.\n")
+      if (length(setdiff(dotenv_keys, live_keys))) {
+        cat("        Also in .env:", paste(setdiff(dotenv_keys, live_keys), collapse = ", "), "\n")
+      }
+    } else if (length(all_disk)) {
+      .print_status_line("AI API keys", paste(all_disk, collapse = ", "), key_info$status)
+      if (length(disk_keys)) {
+        if (isTRUE(key_info$confidential_mode)) {
+          cat("    [i] Cleared from this session; still in .Renviron (reloads next session).\n")
+        } else {
+          cat("    [i] In .Renviron only; not yet loaded into this session.\n")
+        }
+      }
+      if (length(dotenv_keys)) {
+        cat("    [i] In .env; R does not load .env automatically — exposed only if a\n")
+        cat("        tool loads it (dotenv, python-dotenv, shell export). See audit_env_keys().\n")
       }
     } else {
       .print_status_line("AI API keys", "(none)", key_info$status)
@@ -381,18 +395,21 @@ audit_packages <- function(verbose = TRUE) {
   invisible(result)
 }
 
-#' Check for AI API keys in environment variables and .Renviron files
+#' Check for AI API keys in environment variables, .Renviron, and .env files
 #'
-#' Checks three locations: the live R environment (via Sys.getenv()),
-#' the user-level .Renviron file (\code{~/.Renviron}), and the
-#' project-level .Renviron file (\code{./.Renviron}). Keys in the
-#' live environment can be cleared by confidential_mode_on(); keys
-#' stored on disk persist and will be reloaded on next session.
+#' Checks the live R environment (via Sys.getenv()), the user- and
+#' project-level .Renviron files (\code{~/.Renviron}, \code{./.Renviron}),
+#' and .env files (\code{./.env}, \code{~/.env}). Keys in the live
+#' environment can be cleared by confidential_mode_on(). Keys in .Renviron
+#' persist and reload automatically next session. Keys in .env are NOT read
+#' by R automatically — they only reach the session if a tool loads them
+#' (e.g. \code{dotenv::load_dot_env()}, or a Python step via reticulate).
+#' confideR only reads these files; it never modifies them.
 #'
 #' @param verbose Print results? Default \code{TRUE}.
 #' @return Invisibly, a list with \code{found_live} (keys active in the
-#'   environment), \code{found_on_disk} (keys stored in .Renviron files),
-#'   and \code{status}.
+#'   environment), \code{found_on_disk} (keys in .Renviron files),
+#'   \code{found_dotenv} (keys in .env files), and \code{status}.
 #' @export
 audit_env_keys <- function(verbose = TRUE) {
 
@@ -436,6 +453,11 @@ audit_env_keys <- function(verbose = TRUE) {
     }
   }
 
+  # --- Check .env files on disk (dotenv format) ---
+  # Unlike .Renviron, R does NOT read these automatically; a key here is only
+  # a live exposure once a tool loads it. confideR only reads them, never edits.
+  found_dotenv <- .scan_dotenv_keys()
+
   # Keys that are on disk but NOT currently live. When confidential mode
   # is active, live keys have been cleared, so an on-disk key that is not
   # live has been successfully neutralised for this session (though it will
@@ -445,15 +467,15 @@ audit_env_keys <- function(verbose = TRUE) {
 
   # --- Status logic ---
   # RED   : a key is live in the environment right now (active exposure)
-  # AMBER : no live keys, but keys exist on disk AND confidential mode is
-  #         OFF — a latent risk the user should be aware of (will load into
-  #         a future session, or could be loaded this session)
-  # GREEN : no keys anywhere, OR the only keys are on-disk and confidential
-  #         mode is ON (already cleared from this session; the on-disk copy
-  #         is a next-session concern, not a current exposure)
+  # AMBER : no live keys, but keys exist in .Renviron or .env AND confidential
+  #         mode is OFF — a latent risk the user should be aware of (.Renviron
+  #         will load next session; .env could be loaded by a tool this session)
+  # GREEN : no keys anywhere, OR the only on-disk keys exist and confidential
+  #         mode is ON (already cleared/not loaded this session; the on-disk
+  #         copy is a next-session concern, not a current exposure)
   status <- if (length(found_live) > 0) {
     "RED"
-  } else if (length(found_on_disk) > 0 && !conf_mode) {
+  } else if ((length(found_on_disk) > 0 || length(found_dotenv) > 0) && !conf_mode) {
     "AMBER"
   } else {
     "GREEN"
@@ -462,6 +484,7 @@ audit_env_keys <- function(verbose = TRUE) {
   result <- list(
     found_live       = found_live,
     found_on_disk    = found_on_disk,
+    found_dotenv     = found_dotenv,
     on_disk_not_live = on_disk_not_live,
     confidential_mode = conf_mode,
     status           = status
@@ -494,8 +517,24 @@ audit_env_keys <- function(verbose = TRUE) {
         cat("  Comment them out or move to a non-loaded location for stronger protection.\n")
       }
     }
-    if (length(found_live) == 0 && length(found_on_disk) == 0) {
-      cat("\n  No AI API keys found in environment or .Renviron files.\n")
+    if (length(found_dotenv)) {
+      cat("\n  AI API keys in .env files (dotenv format):\n")
+      for (f in found_dotenv) {
+        live_flag <- if (f$key %in% found_live) " [currently LIVE in session]"
+                     else " [not loaded into this session]"
+        cat(sprintf("    ! %s [%s:%d]%s\n", f$key, basename(f$file), f$line_number, live_flag))
+      }
+      cat("  Unlike .Renviron, R does NOT read .env automatically, so these keys\n")
+      cat("  are only exposed if something loads them. Common ways that happens\n")
+      cat("  (sometimes without an obvious step):\n")
+      cat("    - dotenv::load_dot_env() or readRenviron('.env') in a script or .Rprofile\n")
+      cat("    - a Python step via reticulate using python-dotenv\n")
+      cat("    - the shell, a Makefile, or a Docker step exporting them into R's parent process\n")
+      cat("  confideR only reads .env files; it never edits or clears them. To remove\n")
+      cat("  a key, delete or comment its line, or avoid loading the file this session.\n")
+    }
+    if (length(found_live) == 0 && length(found_on_disk) == 0 && length(found_dotenv) == 0) {
+      cat("\n  No AI API keys found in environment, .Renviron, or .env files.\n")
     }
     cat("\n")
   }
@@ -814,6 +853,52 @@ audit_processes <- function(verbose = TRUE) {
     error   = function(e) character(0),
     warning = function(w) character(0)
   )
+}
+
+# ============================================================
+# .env (dotenv) file scan
+# ============================================================
+
+# Scans .env files for AI API keys. Unlike .Renviron, .env files are NOT
+# read by R automatically — a key here only reaches the session if a tool
+# loads it (dotenv::load_dot_env(), python-dotenv via reticulate, a shell
+# export, etc.). confideR only READS these files; it never edits or clears
+# them. Returns a list of list(file, key, line_number), matching the shape
+# of found_on_disk so downstream reporting can treat them uniformly.
+#
+# Tolerant of the common dotenv line forms:
+#   KEY=value
+#   export KEY=value
+#   KEY="value" / KEY='value'
+.scan_dotenv_keys <- function() {
+  dotenv_files <- unique(c(
+    file.path(getwd(), ".env"),
+    path.expand("~/.env")
+  ))
+  dotenv_files <- dotenv_files[nzchar(dotenv_files)]
+
+  found <- list()
+  for (fpath in dotenv_files) {
+    if (!file.exists(fpath)) next
+    lines <- tryCatch(readLines(fpath, warn = FALSE), error = function(e) character(0))
+    for (i in seq_along(lines)) {
+      line <- trimws(lines[i])
+      if (!nzchar(line) || startsWith(line, "#")) next
+      # Strip an optional leading "export " so the KEY= match works.
+      line_key <- sub("^export\\s+", "", line)
+      for (key in .confider_api_keys) {
+        if (grepl(paste0("^", key, "\\s*="), line_key)) {
+          found <- c(found, list(list(
+            file = fpath,
+            key = key,
+            line_number = i
+          )))
+          break
+        }
+      }
+    }
+  }
+  found
 }
 
 # ============================================================

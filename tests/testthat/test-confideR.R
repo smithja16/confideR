@@ -114,7 +114,36 @@ test_that("audit functions run without error", {
 
 test_that("audit_env_keys returns expected structure", {
   r <- audit_env_keys(verbose = FALSE)
-  expect_true(all(c("found_live", "found_on_disk", "status") %in% names(r)))
+  expect_true(all(c("found_live", "found_on_disk", "found_dotenv", "status") %in% names(r)))
+})
+
+test_that("audit_env_keys scans .env files (dotenv format)", {
+  # Work in a temp dir so ./.env is a controlled fixture, and clear the
+  # keys from the live environment so we test the on-disk scan specifically.
+  proj <- tempfile("confider_env"); dir.create(proj)
+  old_wd <- setwd(proj)
+  on.exit({ setwd(old_wd) }, add = TRUE)
+  writeLines(c(
+    "# secrets",
+    "export OPENAI_API_KEY=sk-abc123",     # export prefix
+    "ANTHROPIC_API_KEY=\"sk-ant-xyz\"",     # quoted value
+    "NOT_A_KEY=whatever"                     # should be ignored
+  ), ".env")
+
+  old_openai <- Sys.getenv("OPENAI_API_KEY"); old_anthropic <- Sys.getenv("ANTHROPIC_API_KEY")
+  Sys.unsetenv("OPENAI_API_KEY"); Sys.unsetenv("ANTHROPIC_API_KEY")
+  confidential_mode_off(verbose = FALSE)
+  on.exit({
+    if (nzchar(old_openai)) Sys.setenv(OPENAI_API_KEY = old_openai)
+    if (nzchar(old_anthropic)) Sys.setenv(ANTHROPIC_API_KEY = old_anthropic)
+  }, add = TRUE)
+
+  r <- audit_env_keys(verbose = FALSE)
+  keys <- vapply(r$found_dotenv, function(f) f$key, character(1))
+  expect_true("OPENAI_API_KEY" %in% keys)      # export prefix handled
+  expect_true("ANTHROPIC_API_KEY" %in% keys)   # quoted value handled
+  expect_false("NOT_A_KEY" %in% keys)          # non-AI key ignored
+  expect_equal(r$status, "AMBER")              # on-disk keys, mode off
 })
 
 test_that("audit_processes returns expected structure", {

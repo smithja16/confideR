@@ -35,3 +35,8 @@ An object of class \code{confider_fingerprint}.
 Summarises structure and statistics without retaining raw values.
 The result is safe to share with AI tools for code generation.
 }
+\seealso{
+\code{\link[=format_for_prompt]{format_for_prompt()}} to render the fingerprint as text for an
+AI chat, and \code{\link[=simulate_from_fingerprint]{simulate_from_fingerprint()}} to turn it back into a
+synthetic dataset (the "fingerprint -> simulate" round trip).
+}

@@ -63,7 +63,7 @@ Default \code{log(8)}.}
 Default 0.5.}
 
 \item{zero_inflation}{Proportion of zero responses. Default 0
-(none). Set to e.g. 0.15 for 15\\% zeros.}
+(none). Set to e.g. 0.15 for 15 percent zeros.}
 
 \item{include_observer}{Logical. Add observer coverage columns
 (\code{observed}, \code{observer_id})? Default \code{FALSE}.}
@@ -119,6 +119,14 @@ simulated dataset works as a stand-in for any structured
 survey response with effort standardisation. Rename columns
 to match your real data before writing analysis code.
 }
+\note{
+The relationships in the output (group, strata, seasonal, and
+effort-driven effects) are those built in by the parameters, not learned
+from any real dataset — which is what makes the result safe to share.
+To reproduce the joint structure of a specific confidential dataset,
+use the \pkg{synthpop} package on your secure machine rather than trying
+to encode correlations in a fingerprint.
+}
 \examples{
 \dontrun{
   confidential_mode_on()
@@ -126,4 +134,10 @@ to match your real data before writing analysis code.
   head(dat)
   write.csv(dat, "data/simulated_data.csv", row.names = FALSE)
 }
+}
+\seealso{
+\code{\link[=simulate_from_fingerprint]{simulate_from_fingerprint()}} to instead generate synthetic
+data that mirrors a real dataset's structure (the
+"fingerprint -> simulate" round trip), and \code{\link[=fingerprint]{fingerprint()}} to create
+that structural summary.
 }

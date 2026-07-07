@@ -23,3 +23,27 @@ a \code{confider_fingerprint}: same column names (or aliases),
 types, and approximate distributional properties. Useful for
 generating AI-safe data that mirrors your real dataset.
 }
+\details{
+This is the second half of the "fingerprint -> simulate" round trip:
+\code{fingerprint(real_data)} produces a privacy-safe summary, and
+\code{simulate_from_fingerprint()} turns that summary back into a
+synthetic dataset you can safely develop against with AI tools.
+}
+\note{
+Columns are generated independently from their marginal summaries;
+the output does not reproduce correlations or other joint relationships
+between variables. This is deliberate — a fingerprint is a non-disclosive
+structural summary, and encoding joint structure would push real
+information into an object meant to be shareable. If realistic
+relationships matter (e.g. to check that an analysis recovers known
+effects), use \code{\link[=simulate_data]{simulate_data()}}, which builds in group, strata, seasonal,
+and effort-driven structure by design. To reproduce a specific real
+dataset's own joint structure, generate synthetic data with the
+\pkg{synthpop} package on your secure machine (where the real data lives)
+and transfer the synthetic file — keeping joint information out of the
+fingerprint.
+}
+\seealso{
+\code{\link[=fingerprint]{fingerprint()}} to create the summary this consumes, and
+\code{\link[=simulate_data]{simulate_data()}} to generate data from parameters instead.
+}

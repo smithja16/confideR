@@ -124,10 +124,13 @@ confidential_mode_on <- function(verbose = TRUE) {
       cat("\n")
     }
 
-    cat("  Automated protections are now active. However, confideR\n")
-    cat("  cannot detect all AI features (e.g. IDE-level extensions,\n")
-    cat("  unlisted packages, or shared workstation configurations).\n")
-    cat("  Please also verify manually that AI tools are disabled.\n")
+    cat("  IMPORTANT: confideR reduces risk but does NOT guarantee an AI-free\n")
+    cat("  workspace. It cannot detect every AI feature (IDE-level extensions,\n")
+    cat("  unlisted packages, background agents, or shared-workstation setups),\n")
+    cat("  so it is not a substitute for your own checks. For highly sensitive\n")
+    cat("  data, develop on simulated data and run the real analysis on a\n")
+    cat("  separate machine with no AI tools. Always verify manually that AI\n")
+    cat("  tools are disabled.\n")
     cat("\n  To exit: confidential_mode_off()\n\n")
   }
 

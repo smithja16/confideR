@@ -91,15 +91,17 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
         cat("        directly via rstudioapi.\n")
       }
     } else if (ide_info$ide_detail$is_positron) {
-      cat("    [i] Positron detected. Positron Assistant and Copilot settings\n")
-      cat("        are stored in settings.json, which R cannot read directly.\n")
-      cat("        Automated checks are limited to environment variables and\n")
-      cat("        loaded R packages. Manual verification is essential.\n")
+      cat("    [i] Positron detected. confideR reads the Assistant and Copilot\n")
+      cat("        enable flags from Positron's settings.json, but cannot see\n")
+      cat("        workspace-level overrides, model/endpoint configuration, or\n")
+      cat("        which extensions are installed. Manual verification is still\n")
+      cat("        important.\n")
     } else if (ide_info$ide_detail$is_vscode) {
-      cat("    [i] VS Code detected. Extension settings, Claude Code config\n")
-      cat("        (~/.claude/), and Copilot tokens are stored outside R's\n")
-      cat("        visibility. Automated checks cover environment variables\n")
-      cat("        and R packages only. Manual verification is essential.\n")
+      cat("    [i] VS Code detected. confideR scans ~/.vscode/extensions/ for AI\n")
+      cat("        extensions and checks for Claude Code (~/.claude/) and Copilot\n")
+      cat("        token environment variables, but cannot read VS Code's\n")
+      cat("        settings.json or per-workspace enabled/disabled state. Manual\n")
+      cat("        verification is still important.\n")
     } else {
       cat("    [i] Terminal or unknown IDE detected. If you are using an IDE,\n")
       cat("        confideR may not have detected it correctly. Check IDE AI\n")
@@ -190,6 +192,8 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
       cat("  Review the warnings above before proceeding.\n")
     } else {
       cat("\n  No AI risks detected by automated checks.\n")
+      cat("  This is not a guarantee - confideR cannot see every AI feature.\n")
+      cat("  Verify manually.\n")
     }
 
     # Manual checks — tailored to IDE where possible.
@@ -206,12 +210,21 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
       cat("    [ ] Global Options > Copilot: confirm Copilot is disabled\n")
       cat("        (confideR checks this via rstudioapi, but verify visually\n")
       cat("        if the automated check returned AMBER or could not verify)\n")
+      cat("    [ ] Tools > Global Options > Assistant: set 'Use code assistant'\n")
+      cat("        to None to disable Posit Assistant and Next Edit Suggestions.\n")
+      cat("        These use the managed Posit AI service (no API key), so confideR\n")
+      cat("        cannot clear them automatically - and they can read your live\n")
+      cat("        R session and data. (Newer RStudio versions only.)\n")
       cat("    [ ] Addins menu: check no AI addins (gptstudio, gander, chattr)\n")
       cat("        are active or have been invoked in this session\n")
     } else if (ide_info$ide_detail$is_positron) {
-      cat("    [ ] Settings > Positron Assistant: confirm the Assistant is\n")
-      cat("        disabled or set to a local-only model\n")
-      cat("        (confideR checks settings.json, but verify visually)\n")
+      cat("    [ ] Disable Positron Assistant, and make the editor prompt before\n")
+      cat("        trusting new folders (so extensions don't silently auto-activate).\n")
+      cat("        Use the Settings UI (Ctrl+,) and search each name, or add to\n")
+      cat("        settings.json (Ctrl+Shift+P > 'Preferences: Open User Settings (JSON)'):\n")
+      cat("          \"positron.assistant.enable\": false\n")
+      cat("          \"security.workspace.trust.startupPrompt\": \"always\"\n")
+      cat("        (confideR checks the Assistant setting, but verify visually.)\n")
       cat("    [ ] Settings > Extensions > GitHub Copilot: confirm Copilot\n")
       cat("        is disabled (confideR checks settings.json, but verify visually)\n")
       cat("    [ ] Check that your R console history does not show data output\n")
@@ -222,10 +235,17 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
       cat("        are disabled (confideR scans ~/.vscode/extensions/ but cannot\n")
       cat("        read per-workspace enabled/disabled state)\n")
       cat("    [ ] Check VS Code settings.json for AI extension configuration\n")
-      cat("        (Ctrl+Shift+P > 'Open User Settings JSON')\n")
+      cat("        (Ctrl+Shift+P > 'Preferences: Open User Settings (JSON)')\n")
       cat("    [ ] Be aware that some VS Code extensions scan terminal output\n")
       cat("        to attach to R sessions without loading any R package —\n")
       cat("        these cannot be detected from within R\n")
+      cat("    [ ] Recommended settings to reduce AI exposure. Either open the\n")
+      cat("        Settings UI (Ctrl+,) and search each name, or add these to your\n")
+      cat("        settings.json (Ctrl+Shift+P > 'Preferences: Open User Settings (JSON)'):\n")
+      cat("          \"security.workspace.trust.startupPrompt\": \"always\"\n")
+      cat("          \"security.workspace.trust.banner\": \"untilDismissed\"\n")
+      cat("        These make the editor always prompt before trusting a folder and keep\n")
+      cat("        the trust banner visible, so AI extensions don't silently auto-activate.\n")
     }
  
     # Universal manual checks that apply to all IDEs

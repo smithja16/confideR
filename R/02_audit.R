@@ -193,7 +193,7 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
     } else {
       cat("\n  No AI risks detected by automated checks.\n")
       cat("  This is not a guarantee - confideR cannot see every AI feature.\n")
-      cat("  Verify manually.\n")
+      cat("  Practice safe coding.\n")
     }
 
     # Manual checks — tailored to IDE where possible.

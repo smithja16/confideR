@@ -12,7 +12,7 @@ simulate_from_fingerprint(fp, n = NULL, seed = 117)
 
 \item{n}{Number of rows. Default uses the original dataset's row count.}
 
-\item{seed}{Random seed. Default 42.}
+\item{seed}{Random seed. Default 117.}
 }
 \value{
 A data frame with the same structure as the fingerprinted data.
@@ -34,7 +34,12 @@ Columns are generated independently from their marginal summaries;
 the output does not reproduce correlations or other joint relationships
 between variables. This is deliberate — a fingerprint is a non-disclosive
 structural summary, and encoding joint structure would push real
-information into an object meant to be shareable. If realistic
+information into an object meant to be shareable. For the same reason,
+continuous columns are resampled from a normal distribution using the
+reported mean and standard deviation, so skewed non-negative variables
+(e.g. catch, biomass, income) can yield negative simulated values —
+treat the simulated data as structural rather than physical, or clamp
+values where your analysis requires it. If realistic
 relationships matter (e.g. to check that an analysis recovers known
 effects), use \code{\link[=simulate_data]{simulate_data()}}, which builds in group, strata, seasonal,
 and effort-driven structure by design. To reproduce a specific real
@@ -44,6 +49,8 @@ and transfer the synthetic file — keeping joint information out of the
 fingerprint.
 }
 \seealso{
-\code{\link[=fingerprint]{fingerprint()}} to create the summary this consumes, and
-\code{\link[=simulate_data]{simulate_data()}} to generate data from parameters instead.
+\code{\link[=fingerprint]{fingerprint()}} to create the summary this consumes,
+\code{\link[=restore_names]{restore_names()}} to map an obfuscated simulation's alias column names
+back to the originals in-session, and \code{\link[=simulate_data]{simulate_data()}} to generate
+data from parameters instead.
 }

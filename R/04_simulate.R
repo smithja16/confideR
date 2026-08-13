@@ -252,13 +252,18 @@ simulate_data <- function(
 #' @param fp A \code{confider_fingerprint} object (must have
 #'   \code{mode = "summary"}).
 #' @param n Number of rows. Default uses the original dataset's row count.
-#' @param seed Random seed. Default 42.
+#' @param seed Random seed. Default 117.
 #' @return A data frame with the same structure as the fingerprinted data.
 #' @note Columns are generated independently from their marginal summaries;
 #'   the output does not reproduce correlations or other joint relationships
 #'   between variables. This is deliberate — a fingerprint is a non-disclosive
 #'   structural summary, and encoding joint structure would push real
-#'   information into an object meant to be shareable. If realistic
+#'   information into an object meant to be shareable. For the same reason,
+#'   continuous columns are resampled from a normal distribution using the
+#'   reported mean and standard deviation, so skewed non-negative variables
+#'   (e.g. catch, biomass, income) can yield negative simulated values —
+#'   treat the simulated data as structural rather than physical, or clamp
+#'   values where your analysis requires it. If realistic
 #'   relationships matter (e.g. to check that an analysis recovers known
 #'   effects), use [simulate_data()], which builds in group, strata, seasonal,
 #'   and effort-driven structure by design. To reproduce a specific real
@@ -266,8 +271,10 @@ simulate_data <- function(
 #'   \pkg{synthpop} package on your secure machine (where the real data lives)
 #'   and transfer the synthetic file — keeping joint information out of the
 #'   fingerprint.
-#' @seealso [fingerprint()] to create the summary this consumes, and
-#'   [simulate_data()] to generate data from parameters instead.
+#' @seealso [fingerprint()] to create the summary this consumes,
+#'   [restore_names()] to map an obfuscated simulation's alias column names
+#'   back to the originals in-session, and [simulate_data()] to generate
+#'   data from parameters instead.
 #' @export
 simulate_from_fingerprint <- function(fp, n = NULL, seed = 117) {
   stopifnot(is_fingerprint(fp))
@@ -313,8 +320,15 @@ simulate_from_fingerprint <- function(fp, n = NULL, seed = 117) {
       },
       date = {
         if (!is.null(stats$min) && !is.null(stats$max)) {
-          min_d <- tryCatch(as.Date(paste0(stats$min, "-01")), error = function(e) as.Date("2010-01-01"))
-          max_d <- tryCatch(as.Date(paste0(stats$max, "-28")), error = function(e) as.Date("2023-12-31"))
+          # Fingerprint dates arrive at day ("2016-06-03"), month ("2016-06"),
+          # or year ("2016") precision depending on anonymise$date_precision;
+          # complete each to a full date before parsing (previously the year
+          # form errored into the 2010/2023 fallback and silently shifted the
+          # simulated range).
+          min_d <- tryCatch(.complete_fp_date(stats$min, "-01", "-01"),
+                            error = function(e) as.Date("2010-01-01"))
+          max_d <- tryCatch(.complete_fp_date(stats$max, "-12", "-28"),
+                            error = function(e) as.Date("2023-12-31"))
           as.Date(sample(as.integer(min_d):as.integer(max_d), n, replace = TRUE), origin = "1970-01-01")
         } else {
           as.Date(sample(0:1825, n, replace = TRUE), origin = "2018-01-01")
@@ -343,4 +357,17 @@ simulate_from_fingerprint <- function(fp, n = NULL, seed = 117) {
   ))
 
   dat
+}
+
+# Complete a fingerprint date string to a full "%Y-%m-%d" date. Fingerprints
+# record dates at day, month, or year precision (anonymise$date_precision);
+# month_part/day_part supply the missing components (e.g. "-01"/"-01" for a
+# range minimum, "-12"/"-28" for a maximum).
+.complete_fp_date <- function(s, month_part, day_part) {
+  s <- as.character(s)
+  if (grepl("^\\d{4}$", s))       s <- paste0(s, month_part)
+  if (grepl("^\\d{4}-\\d{2}$", s)) s <- paste0(s, day_part)
+  out <- as.Date(s)
+  if (is.na(out)) stop("unparseable fingerprint date: ", s)
+  out
 }

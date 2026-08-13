@@ -22,7 +22,11 @@
 #' @param obfuscation \code{"none"}, \code{"partial"}, or \code{"full"}.
 #' @param confidential Optional named list with \code{identifiers},
 #'   \code{coords}, and \code{other} character vectors of column names
-#'   to treat as confidential. If \code{NULL}, auto-detected.
+#'   to treat as confidential. If \code{NULL}, auto-detected. Auto-detection
+#'   is deliberately conservative: besides name patterns, any character or
+#'   factor column whose unique-value ratio exceeds 0.4 is flagged, so in
+#'   small datasets most distinct-valued text columns will be treated as
+#'   confidential — pass this argument explicitly to override.
 #' @param anonymise List of thresholds: \code{numeric_digits},
 #'   \code{min_level_size}, \code{max_levels_shown}, \code{date_precision}.
 #' @return An object of class \code{confider_fingerprint}.
@@ -71,8 +75,12 @@ fingerprint <- function(
     alias    = unname(alias_map),
     type     = unname(col_types),
     n_miss   = vapply(data, function(x) sum(is.na(x)), integer(1)),
-    # Round to 2dp to avoid disclosing exact missing counts via proportion
-    p_miss   = round(vapply(data, function(x) mean(is.na(x)), numeric(1)), 2),
+    # Round to 3dp so rare (<0.5%) missingness survives the fingerprint ->
+    # simulate round trip. The rounding is for fidelity, not disclosure
+    # control: whole-column missing counts are treated as non-disclosive
+    # aggregates throughout (n_miss above is stored exactly, and counts are
+    # recoverable from p_miss * n_rows for n < 1000 regardless).
+    p_miss   = round(vapply(data, function(x) mean(is.na(x)), numeric(1)), 3),
     confidential = names(data) %in% all_conf,
     stringsAsFactors = FALSE
   )
@@ -121,6 +129,47 @@ alias_map <- function(fp) {
     alias    = unname(fp$.alias_map),
     stringsAsFactors = FALSE
   )
+}
+
+#' Restore original column names on data simulated from an obfuscated fingerprint
+#'
+#' \code{simulate_from_fingerprint()} keys columns by the fingerprint's
+#' aliases, so data simulated from an obfuscated fingerprint carries alias
+#' names (\code{ID_1}, \code{Coord_1}, \code{Var1}, ...) and analysis code
+#' written against it will not run on the real data without renaming. This
+#' helper renames the simulated columns back to the original names using the
+#' fingerprint's in-session alias map. Use it only in the secure session that
+#' created the fingerprint; the restored names (like the alias map itself)
+#' should never be shared with an AI tool.
+#'
+#' Prefer developing AI-assisted code against the \emph{aliased} names and
+#' restoring only for the final run: once code refers to the original
+#' confidential column names, pasting that code (or its error messages) into
+#' an AI chat exposes exactly the metadata obfuscation exists to hide, and
+#' \code{scan_script()} has no pattern that would catch it. A reminder is
+#' printed on every call for this reason (suppress with
+#' \code{verbose = FALSE}).
+#'
+#' @param sim A data frame returned by \code{simulate_from_fingerprint()}.
+#' @param fp The \code{confider_fingerprint} the data was simulated from.
+#' @param verbose Logical. Print the do-not-share reminder? Default \code{TRUE}.
+#' @return \code{sim} with original column names where aliases matched.
+#' @export
+restore_names <- function(sim, fp, verbose = TRUE) {
+  stopifnot(is.data.frame(sim), is_fingerprint(fp))
+  m <- alias_map(fp)
+  idx <- match(names(sim), m$alias)
+  hit <- !is.na(idx)
+  names(sim)[hit] <- m$original[idx[hit]]
+  if (verbose && any(hit)) {
+    message(
+      "[confideR] Original column names restored. Keep this data frame, and any\n",
+      "  code or error output that references these names, out of AI prompts --\n",
+      "  scan_script() cannot detect original names in code. Prefer developing\n",
+      "  against the aliased names and restoring only for the final run."
+    )
+  }
+  sim
 }
 
 #' Format a fingerprint as text for pasting into an AI chat
@@ -239,7 +288,9 @@ print.confider_fingerprint <- function(x, ...) {
   )
   id_by_name <- nm[grepl(id_pat, nm_l)]
 
-  # High-cardinality character columns
+  # High-cardinality character columns. The denominator is nrow, so small
+  # datasets flag most distinct-valued text columns — deliberately
+  # conservative; callers can override via fingerprint(confidential = ...).
   id_by_card <- nm[vapply(seq_along(nm), function(i) {
     col_types[i] == "categorical" && (length(unique(data[[nm[i]]])) / n) > 0.4
   }, logical(1))]
@@ -323,6 +374,14 @@ print.confider_fingerprint <- function(x, ...) {
         list(n_levels = length(tab),
              levels = if (safe) names(tab) else NULL,
              note = if (!safe) sprintf("%d levels (names suppressed)", length(tab)) else NULL)
+      },
+      logical = {
+        # A whole-column proportion is not disclosive; without it,
+        # simulate_from_fingerprint() falls back to 50/50.
+        xl <- x[!is.na(x)]
+        if (length(xl) == 0) list(note = "all missing")
+        else list(p_true = round(mean(xl), anon$numeric_digits),
+                  n = length(xl))
       },
       date = {
         xd <- x[!is.na(x)]

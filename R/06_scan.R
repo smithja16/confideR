@@ -283,10 +283,29 @@ check_notebook_outputs <- function(path, verbose = TRUE) {
         advice = "Embedded plots may contain labelled data points. Review plots for real identifiers before sharing."
       )))
     }
-    # Check for chunk output markers (knitr-style)
-    if (grepl("^##\\s+\\[1\\]|^##\\s+[A-Z]", content, perl = TRUE)) {
+    # Check for chunk output markers (knitr-style). Test per line: content
+    # is the whole file collapsed to one string, so without multiline mode
+    # '^' would only ever match the first line of the file.
+    #
+    # The patterns target knitr's "## "-prefixed output specifically, not
+    # every "## " line — a bare '^##\s+[A-Z]' would flag ordinary markdown
+    # level-2 headings ("## Methods") in every clean notebook. Covered:
+    #   ## [1] 42.7          indexed vector output
+    #   ## # A tibble: ...   tibble/meta headers
+    #   ## 'data.frame': ... str() output
+    #   ## Error/Warning ... captured conditions
+    #   ##   mpg cyl         column-aligned tabular output (2+ spaces)
+    # Known residual miss: unaligned single-space output rows (e.g. a
+    # data.frame body line "## Mazda RX4  21.0") when no header/index line
+    # accompanies them — in practice knitr output blocks contain at least
+    # one of the covered shapes, and detection is per-file (any() below).
+    knitr_output_pat <- paste0(
+      "^##\\s+(\\[\\d+\\]|#\\s|'|Error\\b|Warning\\b)",
+      "|^##\\s{2,}\\S"
+    )
+    if (any(grepl(knitr_output_pat, lines, perl = TRUE))) {
       findings <- c(findings, list(list(
-        issue = "Lines starting with '## ' detected (possible cached chunk output).",
+        issue = "knitr-style output lines ('## ' prefixed) detected (possible cached chunk output).",
         advice = "These may be R output saved alongside the source. Clear and re-render if sharing."
       )))
     }

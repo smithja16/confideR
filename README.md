@@ -16,7 +16,7 @@ It provides four core capabilities:
 
 4. **Data simulation**: Generate realistic simulated survey datasets with group effects, strata effects, seasonal patterns, observer coverage, and secondary observations — safe to use with any AI tool. Supports the *develop on simulated data, run on real data* workflow.
 
-## Installation
+## Installation and Example
 
 ```r
 # From GitHub

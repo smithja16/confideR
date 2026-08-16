@@ -56,6 +56,12 @@ sim_real <- simulate_from_fingerprint(fp_sim)
 # write.csv(sim_real, "data/simulated_data.csv", row.names = FALSE)
 # This file is safe to use with an AI tool (after checking)
 
+# NOTE: with obfuscation, simulated columns carry alias names (ID_1, Coord_1,
+# Var1, ...). Keep those aliases while developing with AI. Only on the secure
+# machine, for the final run against real data, restore the original names:
+# sim_real <- restore_names(sim_real, fp_real)
+# Never paste restored names - or code/errors referencing them - into an AI tool.
+
 # 8. Check if object contains raw data
 library(mgcv)
 M <- gam(log(response) ~ stratum + s(month, bs="cc") + s(year) +
@@ -89,6 +95,8 @@ confidential_mode_off()
 - `confidential_mode_on()` — activate protection
 - `confidential_mode_off()` — deactivate and restore
 - `is_confidential_mode()` — check status
+- `restore_api_keys()` — restore backed-up keys without exiting confidential mode
+- `api_key_status()` — show which AI keys are live, backed up, or on disk
 
 ### Auditing
 - `audit_session()` — comprehensive audit report
@@ -101,7 +109,9 @@ confidential_mode_off()
 
 ### Fingerprinting
 - `fingerprint()` — create structural summary
+- `is_fingerprint()` — test whether an object is a fingerprint
 - `alias_map()` — view alias-to-original mapping (local only)
+- `restore_names()` — rename simulated alias columns back to originals (local only)
 - `format_for_prompt()` — format for AI chat
 
 ### Simulation

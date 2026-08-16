@@ -23,7 +23,11 @@ fingerprint(
 
 \item{confidential}{Optional named list with \code{identifiers},
 \code{coords}, and \code{other} character vectors of column names
-to treat as confidential. If \code{NULL}, auto-detected.}
+to treat as confidential. If \code{NULL}, auto-detected. Auto-detection
+is deliberately conservative: besides name patterns, any character or
+factor column whose unique-value ratio exceeds 0.4 is flagged, so in
+small datasets most distinct-valued text columns will be treated as
+confidential — pass this argument explicitly to override.}
 
 \item{anonymise}{List of thresholds: \code{numeric_digits},
 \code{min_level_size}, \code{max_levels_shown}, \code{date_precision}.}

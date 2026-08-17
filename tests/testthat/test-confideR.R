@@ -20,6 +20,45 @@ test_that("prevent_ai_in_confidential_mode blocks when on", {
   confidential_mode_off(verbose = FALSE)
 })
 
+test_that("restore_api_keys is refused while confidential mode is active", {
+  # Keys and protection travel together: restoring while protection is on
+  # would leave live AI keys in a session still reported as confidential.
+  old <- Sys.getenv("OPENAI_API_KEY")
+  on.exit({
+    confidential_mode_off(verbose = FALSE)
+    if (nzchar(old)) Sys.setenv(OPENAI_API_KEY = old) else Sys.unsetenv("OPENAI_API_KEY")
+  }, add = TRUE)
+
+  confidential_mode_off(verbose = FALSE)   # clears any stale backup
+  Sys.setenv(OPENAI_API_KEY = "sk-test-guard")
+  confidential_mode_on(verbose = FALSE)
+
+  expect_identical(Sys.getenv("OPENAI_API_KEY", unset = ""), "")  # cleared
+  expect_error(restore_api_keys(verbose = FALSE), "Confidential mode is ACTIVE")
+  expect_identical(Sys.getenv("OPENAI_API_KEY", unset = ""), "")  # still cleared
+})
+
+test_that("restore_api_keys recovers keys and clears backups when mode is off", {
+  old <- Sys.getenv("OPENAI_API_KEY")
+  on.exit({
+    confidential_mode_off(verbose = FALSE)
+    if (nzchar(old)) Sys.setenv(OPENAI_API_KEY = old) else Sys.unsetenv("OPENAI_API_KEY")
+  }, add = TRUE)
+
+  confidential_mode_off(verbose = FALSE)
+  Sys.setenv(OPENAI_API_KEY = "sk-test-recover")
+  confidential_mode_on(verbose = FALSE)
+
+  # Simulate an unclean exit: session flag gone, backup left behind.
+  options(confider.confidential_mode = FALSE)
+  expect_true(nzchar(getOption("confider.backup.openai_api_key", "")))
+
+  restored <- restore_api_keys(verbose = FALSE)
+  expect_true("OPENAI_API_KEY" %in% restored)
+  expect_identical(Sys.getenv("OPENAI_API_KEY"), "sk-test-recover")
+  expect_null(getOption("confider.backup.openai_api_key"))  # backup cleared
+})
+
 test_that("contains_data_like detects data frames", {
   expect_true(contains_data_like(mtcars))
   expect_true(contains_data_like(data.frame(x = 1:10)))

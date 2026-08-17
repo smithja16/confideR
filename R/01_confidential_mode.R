@@ -296,24 +296,50 @@ prevent_ai_in_confidential_mode <- function(reason = NULL) {
 # Recovery helpers
 # ============================================================
 
-#' Restore API keys without turning off confidential mode
+#' Recover API keys backed up by an unclean confidential session
 #'
-#' Emergency/manual recovery: if you need to re-enable AI tools
-#' temporarily but want to keep the library hook and session flag
-#' active, this function restores the backed-up keys without calling
-#' confidential_mode_off(). Use sparingly — the idea is that
-#' keys and protection travel together, and separating them is risky.
+#' Recovery helper for the case where confidential mode was left in an
+#' inconsistent state — backups still held in \code{options()} while the
+#' session flag is off (for example, confideR was detached and re-loaded
+#' within the same session). Restores those backed-up keys to the
+#' environment and clears the backups.
+#'
+#' Keys and protection are designed to travel together: this function
+#' therefore \strong{errors if confidential mode is active}. Restoring keys
+#' while protection is on would leave live AI keys in a session that still
+#' reports itself as confidential, and the library hook would not stop
+#' anything that reads the key directly (\pkg{httr2}, reticulate, or any
+#' package not on the blocklist). To restore keys deliberately, exit
+#' protection with \code{confidential_mode_off()}, which restores them as
+#' part of standing down.
 #'
 #' @param verbose Print status? Default \code{TRUE}.
 #' @return Invisibly, the names of restored keys.
+#' @seealso [confidential_mode_off()], which restores keys and removes
+#'   protection together, and [api_key_status()] to inspect without changing
+#'   anything.
 #' @export
 restore_api_keys <- function(verbose = TRUE) {
+  if (is_confidential_mode()) {
+    stop(
+      "[confideR] Confidential mode is ACTIVE. Restoring keys while\n",
+      "  protection is on would leave live AI keys in a session reported\n",
+      "  as confidential, and the library hook cannot stop code that reads\n",
+      "  the key directly. Use confidential_mode_off() to exit protection\n",
+      "  and restore keys together.",
+      call. = FALSE
+    )
+  }
+
   restored <- character(0)
   for (key in .confider_api_keys) {
     opt_name <- paste0("confider.backup.", tolower(gsub("[^A-Za-z0-9]", "_", key)))
     val <- getOption(opt_name, NULL)
     if (!is.null(val) && nzchar(val)) {
       do.call(Sys.setenv, setNames(list(val), key))
+      # Clear the backup once restored, so keys are not left duplicated in
+      # options() (matching confidential_mode_off()).
+      do.call(options, setNames(list(NULL), opt_name))
       restored <- c(restored, key)
     }
   }
@@ -322,10 +348,6 @@ restore_api_keys <- function(verbose = TRUE) {
     if (length(restored)) {
       cat("[confideR] Restored ", length(restored), " API key(s): ",
           paste(restored, collapse = ", "), "\n", sep = "")
-      if (is_confidential_mode()) {
-        cat("  Confidential mode is still ACTIVE. AI packages remain blocked.\n")
-        cat("  Call confidential_mode_off() to fully exit protection.\n")
-      }
     } else {
       cat("[confideR] No backed-up keys to restore.\n")
       cat("  If keys were set interactively and R was restarted, they are gone\n")
@@ -368,10 +390,20 @@ api_key_status <- function() {
   cat("\n")
   if (length(backed_up) && !length(live)) {
     cat("  Interpretation: keys are cleared and safely backed up.\n")
-    cat("  confidential_mode_off() or restore_api_keys() will restore them.\n")
+    if (is_confidential_mode()) {
+      cat("  confidential_mode_off() will restore them as it stands down\n")
+      cat("  protection. (restore_api_keys() is refused while confidential\n")
+      cat("  mode is active - keys and protection travel together.)\n")
+    } else {
+      cat("  Confidential mode is off, so these are leftover backups from a\n")
+      cat("  session that did not close cleanly. restore_api_keys() will\n")
+      cat("  restore them and clear the backups.\n")
+    }
   } else if (length(backed_up) && length(live)) {
-    cat("  Interpretation: some keys have been restored to the environment,\n")
-    cat("  but backups remain. This is the normal state after restore_api_keys().\n")
+    cat("  Interpretation: some keys are live while backups remain. This can\n")
+    cat("  happen if a key was set manually after confidential_mode_on().\n")
+    cat("  Live AI keys in a confidential session are an active exposure -\n")
+    cat("  see audit_env_keys().\n")
   } else if (!length(backed_up) && !length(live) && length(on_disk)) {
     cat("  Interpretation: no live keys and no backups, but .Renviron has\n")
     cat("  keys that will reload next session.\n")

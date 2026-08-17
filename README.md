@@ -95,7 +95,7 @@ confidential_mode_off()
 - `confidential_mode_on()` — activate protection
 - `confidential_mode_off()` — deactivate and restore
 - `is_confidential_mode()` — check status
-- `restore_api_keys()` — restore backed-up keys without exiting confidential mode
+- `restore_api_keys()` — recover keys from a session that didn't close cleanly (refused while confidential mode is active)
 - `api_key_status()` — show which AI keys are live, backed up, or on disk
 
 ### Auditing

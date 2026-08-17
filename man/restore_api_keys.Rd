@@ -2,7 +2,7 @@
 % Please edit documentation in R/01_confidential_mode.R
 \name{restore_api_keys}
 \alias{restore_api_keys}
-\title{Restore API keys without turning off confidential mode}
+\title{Recover API keys backed up by an unclean confidential session}
 \usage{
 restore_api_keys(verbose = TRUE)
 }
@@ -13,9 +13,24 @@ restore_api_keys(verbose = TRUE)
 Invisibly, the names of restored keys.
 }
 \description{
-Emergency/manual recovery: if you need to re-enable AI tools
-temporarily but want to keep the library hook and session flag
-active, this function restores the backed-up keys without calling
-confidential_mode_off(). Use sparingly — the idea is that
-keys and protection travel together, and separating them is risky.
+Recovery helper for the case where confidential mode was left in an
+inconsistent state — backups still held in \code{options()} while the
+session flag is off (for example, confideR was detached and re-loaded
+within the same session). Restores those backed-up keys to the
+environment and clears the backups.
+}
+\details{
+Keys and protection are designed to travel together: this function
+therefore \strong{errors if confidential mode is active}. Restoring keys
+while protection is on would leave live AI keys in a session that still
+reports itself as confidential, and the library hook would not stop
+anything that reads the key directly (\pkg{httr2}, reticulate, or any
+package not on the blocklist). To restore keys deliberately, exit
+protection with \code{confidential_mode_off()}, which restores them as
+part of standing down.
+}
+\seealso{
+\code{\link[=confidential_mode_off]{confidential_mode_off()}}, which restores keys and removes
+protection together, and \code{\link[=api_key_status]{api_key_status()}} to inspect without changing
+anything.
 }

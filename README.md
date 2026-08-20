@@ -131,6 +131,6 @@ confidential_mode_off()
 If you use confideR in your research, please cite:
 
 ```
-[Authors] (2026). Protecting confidential data when using AI
-coding assistants: A practical guide. [Journal]. DOI: [pending]
+Smith J.A., Roff A., Brown C.J. (2026). Protecting confidential data when using AI
+coding assistants: A practical guide. EcoEvoRxiv (preprint). DOI: https://doi.org/10.32942/X2FM30
 ```

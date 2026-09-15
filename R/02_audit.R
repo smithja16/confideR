@@ -97,11 +97,12 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
       cat("        which extensions are installed. Manual verification is still\n")
       cat("        important.\n")
     } else if (ide_info$ide_detail$is_vscode) {
-      cat("    [i] VS Code detected. confideR scans ~/.vscode/extensions/ for AI\n")
-      cat("        extensions and checks for Claude Code (~/.claude/) and Copilot\n")
-      cat("        token environment variables, but cannot read VS Code's\n")
-      cat("        settings.json or per-workspace enabled/disabled state. Manual\n")
-      cat("        verification is still important.\n")
+      cat("    [i] VS Code detected. confideR checks installed AI extensions,\n")
+      cat("        GitHub Copilot (built into VS Code itself), the AI switches in\n")
+      cat("        your user settings.json, Claude Code, and Copilot tokens. It\n")
+      cat("        cannot see whether VS Code is signed in to GitHub - which is what\n")
+      cat("        activates the built-in Copilot - or per-workspace settings.\n")
+      cat("        Manual verification is still important.\n")
     } else {
       cat("    [i] Terminal or unknown IDE detected. If you are using an IDE,\n")
       cat("        confideR may not have detected it correctly. Check IDE AI\n")
@@ -235,21 +236,24 @@ audit_session <- function(check_rprofile = TRUE, verbose = TRUE) {
       cat("        from head(), print(), or summary() calls — Positron Assistant\n")
       cat("        reads console history as context\n")
     } else if (ide_info$ide_detail$is_vscode) {
-      cat("    [ ] Extensions sidebar: confirm Copilot and other AI extensions\n")
-      cat("        are disabled (confideR scans ~/.vscode/extensions/ but cannot\n")
-      cat("        read per-workspace enabled/disabled state)\n")
-      cat("    [ ] Check VS Code settings.json for AI extension configuration\n")
-      cat("        (Ctrl+Shift+P > 'Preferences: Open User Settings (JSON)')\n")
+      cat("    [ ] GitHub Copilot is built into VS Code, so it does not appear as\n")
+      cat("        an installed extension. It can switch on once VS Code is signed\n")
+      cat("        in to GitHub, including on the free tier. Check the Accounts icon\n")
+      cat("        (bottom-left) and the Copilot icon in the status bar.\n")
+      cat("    [ ] Extensions sidebar: confirm other AI extensions are disabled\n")
+      cat("        (confideR cannot read per-workspace enabled/disabled state)\n")
       cat("    [ ] Be aware that some VS Code extensions scan terminal output\n")
-      cat("        to attach to R sessions without loading any R package —\n")
+      cat("        to attach to R sessions without loading any R package -\n")
       cat("        these cannot be detected from within R\n")
       cat("    [ ] Recommended settings to reduce AI exposure. Either open the\n")
       cat("        Settings UI (Ctrl+,) and search each name, or add these to your\n")
       cat("        settings.json (Ctrl+Shift+P > 'Preferences: Open User Settings (JSON)'):\n")
+      cat("          \"chat.disableAIFeatures\": true\n")
       cat("          \"security.workspace.trust.startupPrompt\": \"always\"\n")
       cat("          \"security.workspace.trust.banner\": \"untilDismissed\"\n")
-      cat("        These make the editor always prompt before trusting a folder and keep\n")
-      cat("        the trust banner visible, so AI extensions don't silently auto-activate.\n")
+      cat("        The first turns off Copilot's built-in AI features even when signed\n")
+      cat("        in to GitHub; the others make the editor prompt before trusting a\n")
+      cat("        folder, so extensions don't silently auto-activate.\n")
     }
  
     # Universal manual checks that apply to all IDEs
@@ -727,6 +731,25 @@ confider_status <- function() {
       ))
     }
 
+    # Built-in Copilot. Recent VS Code ships Copilot inside the application,
+    # so it never appears in ~/.vscode/extensions/, and its defaults are on:
+    # it activates as soon as VS Code is signed in to GitHub - a state R
+    # cannot observe. The only confirmation R can read is the user-level
+    # master switch "chat.disableAIFeatures": true.
+    ai_settings <- .read_vscode_ai_settings()
+    builtin_copilot <- length(.find_vscode_builtin_copilot()) > 0
+    if (builtin_copilot && !isTRUE(ai_settings$ai_disabled)) {
+      warnings <- c(warnings, paste0(
+        "GitHub Copilot is built into this version of VS Code and is on by ",
+        "default once VS Code is signed in to GitHub (including the free tier). ",
+        "It does not appear as an installed extension, and confideR cannot see ",
+        "whether you are signed in. ",
+        if (isTRUE(ai_settings$copilot_off))
+          "Inline suggestions are switched off in your settings, but chat and next edit suggestions are not. ",
+        "Set \"chat.disableAIFeatures\": true in settings.json to turn off Copilot's built-in AI features."
+      ))
+    }
+
     # Copilot token env vars (present in some configurations).
     copilot_signs <- nzchar(Sys.getenv("GITHUB_COPILOT_TOKEN", "")) ||
                      nzchar(Sys.getenv("GH_COPILOT_TOKEN", ""))
@@ -746,9 +769,10 @@ confider_status <- function() {
       )
     }
 
-    if (!length(found_exts) && !copilot_signs && !claude_signs) {
+    if (!length(found_exts) && !copilot_signs && !claude_signs &&
+        !builtin_copilot && !isTRUE(ai_settings$ai_disabled)) {
       warnings <- c(warnings,
-        "Cannot fully verify VS Code AI extensions from R. Check the Extensions sidebar to confirm Copilot and other AI tools are disabled."
+        "Could not confirm that VS Code's AI features are switched off. Check the Accounts icon (signed in to GitHub?) and set \"chat.disableAIFeatures\": true in settings.json."
       )
     }
   }
@@ -946,6 +970,93 @@ audit_processes <- function(verbose = TRUE) {
     found <- c(found, matches)
   }
   unique(found)
+}
+
+# ============================================================
+# VS Code built-in Copilot and AI settings
+# ============================================================
+
+# Candidate "resources/app/extensions" folders of standard VS Code installs.
+# Windows installs now keep resources in a versioned subfolder
+# (Microsoft VS Code/<hash>/resources), hence the glob.
+.vscode_builtin_ext_dirs <- function() {
+  sysname <- Sys.info()[["sysname"]]
+  if (sysname == "Windows") {
+    roots <- gsub("\\\\", "/", c(
+      file.path(Sys.getenv("LOCALAPPDATA"), "Programs", "Microsoft VS Code"),
+      file.path(Sys.getenv("ProgramFiles"), "Microsoft VS Code")
+    ))
+    c(file.path(roots, "resources/app/extensions"),
+      Sys.glob(file.path(roots, "*", "resources/app/extensions")))
+  } else if (sysname == "Darwin") {
+    app <- "Visual Studio Code.app/Contents/Resources/app/extensions"
+    c(file.path("/Applications", app),
+      file.path(path.expand("~"), "Applications", app))
+  } else {
+    c("/usr/share/code/resources/app/extensions",
+      "/snap/code/current/usr/share/code/resources/app/extensions",
+      "/opt/visual-studio-code/resources/app/extensions")
+  }
+}
+
+# Returns paths to VS Code's built-in Copilot extension (character(0) if none).
+# Inside a VS Code terminal the git extension exports VSCODE_GIT_ASKPASS_MAIN,
+# pointing at <install>/resources/app/extensions/git/dist/askpass-main.js, which
+# identifies the running installation exactly; standard paths are the fallback.
+.find_vscode_builtin_copilot <- function(
+    askpass_main   = Sys.getenv("VSCODE_GIT_ASKPASS_MAIN", ""),
+    candidate_dirs = .vscode_builtin_ext_dirs()
+) {
+  dirs <- candidate_dirs
+  if (nzchar(askpass_main)) {
+    dirs <- c(dirname(dirname(dirname(askpass_main))), dirs)
+  }
+  hits <- file.path(unique(dirs), "copilot")
+  unique(hits[dir.exists(hits)])
+}
+
+.vscode_settings_paths <- function() {
+  sysname <- Sys.info()[["sysname"]]
+  base <- if (sysname == "Windows") {
+    Sys.getenv("APPDATA")
+  } else if (sysname == "Darwin") {
+    file.path(path.expand("~"), "Library", "Application Support")
+  } else {
+    file.path(path.expand("~"), ".config")
+  }
+  file.path(base, c("Code", "Code - Insiders"), "User", "settings.json")
+}
+
+# Returns list(ai_disabled, copilot_off), each TRUE/FALSE/NA, from VS Code user
+# settings. NA means not set (VS Code defaults leave AI features on). Uses regex
+# rather than a JSON parser because settings.json allows comments and trailing
+# commas, and confideR avoids a jsonlite dependency. When several settings
+# files exist, a switch counts as on only if every file sets it.
+.read_vscode_ai_settings <- function(paths = .vscode_settings_paths()) {
+  paths <- paths[file.exists(paths)]
+  if (!length(paths)) return(list(ai_disabled = NA, copilot_off = NA))
+
+  read_one <- function(p) {
+    text <- paste(tryCatch(readLines(p, warn = FALSE), error = function(e) character(0)),
+                  collapse = "\n")
+    text <- gsub("(?m)^\\s*//.*$", "", text, perl = TRUE)  # drop commented-out lines
+    ai_disabled <-
+      if (grepl('"chat\\.disableAIFeatures"\\s*:\\s*true', text, perl = TRUE)) TRUE
+      else if (grepl('"chat\\.disableAIFeatures"\\s*:\\s*false', text, perl = TRUE)) FALSE
+      else NA
+    copilot_off <-
+      if (grepl('"github\\.copilot\\.enable"\\s*:\\s*\\{[^}]*"\\*"\\s*:\\s*false', text, perl = TRUE)) TRUE
+      else if (grepl('"github\\.copilot\\.enable"\\s*:\\s*\\{[^}]*"\\*"\\s*:\\s*true', text, perl = TRUE)) FALSE
+      else NA
+    c(ai_disabled = ai_disabled, copilot_off = copilot_off)
+  }
+  flags <- vapply(paths, read_one, logical(2))
+
+  combine <- function(v) {
+    if (all(v %in% TRUE)) TRUE else if (any(v %in% FALSE)) FALSE else NA
+  }
+  list(ai_disabled = combine(flags["ai_disabled", ]),
+       copilot_off = combine(flags["copilot_off", ]))
 }
 
 # ============================================================

@@ -359,6 +359,11 @@ print.confider_fingerprint <- function(x, ...) {
           names(out) <- labels
           out$mean <- round(mean(xf), anon$numeric_digits)
           out$sd   <- round(stats::sd(xf), anon$numeric_digits)
+          # Proportion of exact zeros - a whole-column aggregate (same class as
+          # p_miss and p_true) that lets simulate_from_fingerprint() reproduce
+          # zero-inflation such as empty catches. Omitted when it rounds to 0.
+          p_zero <- round(mean(xf == 0), 3)
+          if (p_zero > 0) out$p_zero <- p_zero
           out$n    <- length(xf)
           out
         }

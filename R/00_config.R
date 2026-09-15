@@ -189,17 +189,31 @@
 # VS Code extension directory name patterns.
 # Matched case-insensitively against subdirectory names in
 # ~/.vscode/extensions/ by .scan_vscode_extensions().
+#
+# NOTE: recent VS Code ships GitHub Copilot inside the application
+# (resources/app/extensions/copilot), so it never appears in
+# ~/.vscode/extensions/. It is detected separately by
+# .find_vscode_builtin_copilot(); "copilot" here only catches older,
+# separately installed versions.
 # -------------------------------------------------------------------
 .confider_vscode_ext_patterns <- c(
-  "copilot",              # GitHub Copilot and Copilot Chat
+  "copilot",              # GitHub Copilot (older, separately installed)
   "claude",               # Claude / Anthropic extensions
   "codeium",              # Codeium
+  "windsurf",             # Windsurf (formerly Codeium)
   "tabnine",              # Tabnine
   "continue\\.continue",  # Continue
   "cody",                 # Sourcegraph Cody
   "amazonq",              # Amazon Q
   "codewhisperer",        # Amazon CodeWhisperer (legacy name)
-  "cursor"                # Cursor AI features
+  "cursor",               # Cursor AI features
+  "openai\\.",            # OpenAI extensions (ChatGPT / Codex)
+  "chatgpt",              # ChatGPT extensions from other publishers
+  "gemini",               # Google Gemini Code Assist
+  "supermaven",           # Supermaven
+  "roo-?cline",           # Roo Code
+  "kilocode",             # Kilo Code
+  "qodo"                  # Qodo (formerly Codium AI)
 )
 
 # -------------------------------------------------------------------

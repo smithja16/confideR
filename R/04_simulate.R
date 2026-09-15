@@ -258,12 +258,16 @@ simulate_data <- function(
 #'   the output does not reproduce correlations or other joint relationships
 #'   between variables. This is deliberate — a fingerprint is a non-disclosive
 #'   structural summary, and encoding joint structure would push real
-#'   information into an object meant to be shareable. For the same reason,
-#'   continuous columns are resampled from a normal distribution using the
-#'   reported mean and standard deviation, so skewed non-negative variables
-#'   (e.g. catch, biomass, income) can yield negative simulated values —
-#'   treat the simulated data as structural rather than physical, or clamp
-#'   values where your analysis requires it. If realistic
+#'   information into an object meant to be shareable. Numeric columns are
+#'   drawn by interpolating between the fingerprint's stored quantiles, so
+#'   skew is preserved, variables whose 5th percentile is non-negative (e.g.
+#'   catch, biomass, income) never go negative, integer columns stay within
+#'   their observed range, and zero-inflation is reproduced from the stored
+#'   proportion of zeros. Tails are deliberately conservative: values are
+#'   extended only slightly beyond the 5th and 95th percentiles, so the maxima
+#'   and standard deviations of heavy-tailed variables will be smaller than
+#'   in the real data - the real extremes are exactly what a fingerprint
+#'   withholds. If realistic
 #'   relationships matter (e.g. to check that an analysis recovers known
 #'   effects), use [simulate_data()], which builds in group, strata, seasonal,
 #'   and effort-driven structure by design. To reproduce a specific real
@@ -297,15 +301,15 @@ simulate_from_fingerprint <- function(fp, n = NULL, seed = 117) {
 
     col_data <- switch(type,
       continuous = {
-        if (!is.null(stats) && !is.null(stats$mean)) {
-          round(stats::rnorm(n, stats$mean, stats$sd %||% 1), 2)
+        if (!is.null(stats$median)) {
+          .sample_from_quantiles(stats, n)
         } else {
           stats::rnorm(n)
         }
       },
       integer = {
-        if (!is.null(stats) && !is.null(stats$mean)) {
-          as.integer(round(stats::rnorm(n, stats$mean, stats$sd %||% 1)))
+        if (!is.null(stats$median)) {
+          .sample_from_quantiles(stats, n, integer = TRUE)
         } else {
           sample(1:100, n, replace = TRUE)
         }
@@ -357,6 +361,51 @@ simulate_from_fingerprint <- function(fp, n = NULL, seed = 117) {
   ))
 
   dat
+}
+
+# Draw numeric values by inverse-CDF interpolation through the quantiles a
+# fingerprint stores. Sampling from rnorm(mean, sd) instead produced negative
+# catches, lost zero-inflation, and pushed bounded integers (months, years,
+# counts) outside their range. Tails beyond q05/q95 are extended by a quarter
+# of the adjacent inter-quantile gap - conservatively, so no value approaches
+# the real (suppressed) extremes - and floored at zero when the 5th percentile
+# is non-negative. p_zero, when present, restores the point mass at zero.
+.sample_from_quantiles <- function(st, n, integer = FALSE) {
+  if (!is.null(st$min) && !is.null(st$max)) {
+    p <- c(0, 0.25, 0.5, 0.75, 1)
+    q <- c(st$min, st$q25, st$median, st$q75, st$max)
+  } else {
+    q_in <- c(st$q05, st$q25, st$median, st$q75, st$q95)
+    lo <- q_in[1] - 0.25 * (q_in[2] - q_in[1])
+    hi <- q_in[5] + 0.25 * (q_in[5] - q_in[4])
+    if (q_in[1] >= 0) lo <- max(0, lo)
+    p <- c(0, 0.05, 0.25, 0.5, 0.75, 0.95, 1)
+    q <- c(lo, q_in, hi)
+  }
+
+  u <- stats::runif(n)
+  x <- stats::approx(p, q, xout = u, ties = "ordered")$y
+
+  p_zero <- st$p_zero %||% 0
+  zero_mass <- p_zero > 0 && q[1] >= 0
+  if (zero_mass) {
+    is_zero <- u <= p_zero
+    keep <- p > p_zero
+    x[!is_zero] <- stats::approx(c(p_zero, p[keep]), c(0, q[keep]),
+                                 xout = u[!is_zero], ties = "ordered")$y
+    x[is_zero] <- 0
+  }
+
+  if (integer) {
+    lo_int <- ceiling(q[1])
+    hi_int <- floor(q[length(q)])
+    if (lo_int > hi_int) return(rep(as.integer(round(st$median)), n))
+    x <- round(x)
+    # Non-zero draws must not round down into the zero mass.
+    if (zero_mass) x[!is_zero] <- pmax(x[!is_zero], 1)
+    return(as.integer(pmin(pmax(x, lo_int), hi_int)))
+  }
+  round(x, 2)
 }
 
 # Complete a fingerprint date string to a full "%Y-%m-%d" date. Fingerprints

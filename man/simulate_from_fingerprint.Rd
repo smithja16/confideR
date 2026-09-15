@@ -34,12 +34,16 @@ Columns are generated independently from their marginal summaries;
 the output does not reproduce correlations or other joint relationships
 between variables. This is deliberate — a fingerprint is a non-disclosive
 structural summary, and encoding joint structure would push real
-information into an object meant to be shareable. For the same reason,
-continuous columns are resampled from a normal distribution using the
-reported mean and standard deviation, so skewed non-negative variables
-(e.g. catch, biomass, income) can yield negative simulated values —
-treat the simulated data as structural rather than physical, or clamp
-values where your analysis requires it. If realistic
+information into an object meant to be shareable. Numeric columns are
+drawn by interpolating between the fingerprint's stored quantiles, so
+skew is preserved, variables whose 5th percentile is non-negative (e.g.
+catch, biomass, income) never go negative, integer columns stay within
+their observed range, and zero-inflation is reproduced from the stored
+proportion of zeros. Tails are deliberately conservative: values are
+extended only slightly beyond the 5th and 95th percentiles, so the maxima
+and standard deviations of heavy-tailed variables will be smaller than
+in the real data - the real extremes are exactly what a fingerprint
+withholds. If realistic
 relationships matter (e.g. to check that an analysis recovers known
 effects), use \code{\link[=simulate_data]{simulate_data()}}, which builds in group, strata, seasonal,
 and effort-driven structure by design. To reproduce a specific real

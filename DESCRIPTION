@@ -1,6 +1,6 @@
 Package: confideR
 Title: Protect Confidential Research Data When Using AI Coding Assistants
-Version: 0.1.0
+Version: 0.1.1
 Authors@R:
     person("James", "Smith", role = c("aut", "cre"),
            email = "james.a.smith@dpi.nsw.gov.au",
